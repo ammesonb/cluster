@@ -28,7 +28,7 @@ and handles system commands with DBus. It relies on libdbus2, libevent2,
 and libconfuse.
 
 ## Configuration files
-There are several configuration files which <b>NUST</b> be modified.
+There are several configuration files which <b>MUST</b> be modified.
 
 ### hosts
 This is a list of hosts. The order is arbitrary, but important. The
