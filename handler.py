@@ -6,8 +6,8 @@ import dbus
 import dbus.service
 from dbus.mainloop.glib import DBusGMainLoop
 
-dbusName = 'com.bammeson.clusterHandler'
-dbusPath = '/com/bammeson/clusterHandler'
+dbusName = 'com.bammeson.clusterhandler'
+dbusPath = '/com/bammeson/clusterhandler'
 
 
 class ClusterService(dbus.service.Object):

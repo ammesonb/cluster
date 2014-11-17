@@ -28,6 +28,11 @@ cfg_bool_t alert = cfg_false;
 int port, debug, interval, dead;
 char *email = NULL, *crit_files = NULL, *crit_dirs = NULL;
 
+// DBus
+char *DBUS_PATH = "/com/bammeson/cluster/"
+char *DBUS_NAME = "com.bammeson.cluster"
+DBusConnection *dbus;
+
 // Network
 int accept_fd;
 char *addresses[MAX_HOSTS];
@@ -128,7 +133,7 @@ int main(int argc, char *argv[]) {/*{{{*/
     cfg = cfg_init(config, 0);
     cfg_parse(cfg, "cluster.conf");/*}}}*/
 
-    PRINTD(3, "Loading configuration")
+    PRINTD(3, "Loading configuration")/*{{{*/
     // Determine my ID
     str_id = read_file("/var/opt/cluster/id");
     id = atoi(str_id);
@@ -138,9 +143,37 @@ int main(int argc, char *argv[]) {/*{{{*/
     load_hosts(hosts);
 
     char *services = read_file("services");
-    load_services(services);
+    load_services(services);/*}}}*/
 
-    // Register DBus handlers
+    // Register signals
+
+    // Register DBus handlers/*{{{*/
+    PRINTD(3, "Registering DBus functions")
+    DBusError dberr;
+    dbus_error_init(&dberr);
+    dbus = dbus_bus_get(DBUS_BUS_SESSION, &dberr);
+    if (!connection || dbus == NULL) {
+        fprintf(stderr, "Failed to connect to DBus: %s", dberr.message);
+        dbus_error_free(&dberr);
+        quit();
+    } 
+
+
+    int owner = dbus_bus_request_name(dbus, DBUS_NAME, DBUS_NAME_FLAG_REPLACE_EXISTING, &dberr);
+    if (dbus_error_is_set(&dberr)) {
+        fprintf(stderr, "DBus Name Error (%s)\n", dberr.message);
+        dbus_error_free(&dberr);
+        quit();
+    } 
+
+    if (DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER != ret) {
+        fprintf(stderr, "Not Primary Owner (%d)\n", owner);
+        quit()
+    }
+    dbus_error_free(&dberr);
+    // Register functions
+    // Will dbus connection work as socket for event callback?
+/*}}}*/
 
     // Launch python script to handle extraneous requests such as file transfers
 
