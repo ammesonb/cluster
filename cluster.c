@@ -183,8 +183,8 @@ int main(int argc, char *argv[]) {/*{{{*/
 /*}}}*/
 
     // Launch python script to handle extraneous requests such as file transfers
-    int is_child = fork();
-    if (is_child) {
+    int is_parent = fork();
+    if (!is_parent) {
         char *args[] = {};
         args[0] = "python";
         args[1] = "handler.py";
