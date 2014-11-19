@@ -53,7 +53,7 @@ int BASE_INITED = 0;
 #define   PRINTD(level, str) if (debug >= level) printf("DEBUG%d: %s\n", level, str);
 /*}}}*/
 
-void quit() {/*{{{*/
+void quit(int sig) {/*{{{*/
     // Clean up
     free(str_id);
     exit(0);
@@ -100,7 +100,7 @@ void init_dbus() {/*{{{*/
     if (!dbus || dbus == NULL) {
         fprintf(stderr, "Failed to connect to DBus: %s", dberr.message);
         dbus_error_free(&dberr);
-        quit();
+        quit(0);
     } 
 
 
@@ -108,12 +108,12 @@ void init_dbus() {/*{{{*/
     if (dbus_error_is_set(&dberr)) {
         fprintf(stderr, "DBus Name Error (%s)\n", dberr.message);
         dbus_error_free(&dberr);
-        quit();
+        quit(0);
     } 
 
     if (DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER != owner) {
         fprintf(stderr, "Not Primary Owner (%d)\n", owner);
-        quit();
+        quit(0);
     }
     dbus_error_free(&dberr);
 }/*}}}*/
@@ -174,7 +174,23 @@ int main(int argc, char *argv[]) {/*{{{*/
     char *services = read_file("services");
     load_services(services);/*}}}*/
 
-    // Register signals
+    // Register signals/*{{{*/
+    if (signal(SIGINT, quit) == SIG_ERR) {
+        fprintf(stderr, "Can't catch SIGINT");
+        quit(0);
+    }
+    if (signal(SIGQUIT, quit) == SIG_ERR) {
+        fprintf(stderr, "Can't catch SIGQUIT");
+        quit(0);
+    }
+    if (signal(SIGKILL, quit) == SIG_ERR) {
+        fprintf(stderr, "Can't catch SIGKILL");
+        quit(0);
+    }
+    if (signal(SIGTERM, quit) == SIG_ERR) {
+        fprintf(stderr, "Can't catch SIGTERM");
+        quit(0);
+    }/*}}}*/
 
     // Register DBus handlers/*{{{*/
     PRINTD(3, "Registering DBus functions")
