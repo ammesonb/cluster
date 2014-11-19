@@ -92,6 +92,34 @@ void load_hosts(char *hosts) {/*{{{*/
 void load_services(char *services) {/*{{{*/
 }/*}}}*/
 
+void init_dbus() {/*{{{*/
+    DBusError dberr;
+    dbus_error_init(&dberr);
+    dbus = dbus_bus_get(DBUS_BUS_SESSION, &dberr);
+    if (!connection || dbus == NULL) {
+        fprintf(stderr, "Failed to connect to DBus: %s", dberr.message);
+        dbus_error_free(&dberr);
+        quit();
+    } 
+
+
+    int owner = dbus_bus_request_name(dbus, DBUS_NAME, DBUS_NAME_FLAG_REPLACE_EXISTING, &dberr);
+    if (dbus_error_is_set(&dberr)) {
+        fprintf(stderr, "DBus Name Error (%s)\n", dberr.message);
+        dbus_error_free(&dberr);
+        quit();
+    } 
+
+    if (DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER != ret) {
+        fprintf(stderr, "Not Primary Owner (%d)\n", owner);
+        quit()
+    }
+    dbus_error_free(&dberr);
+}/*}}}*/
+
+void load_dbus_functions() {/*{{{*/
+}/*}}}*/
+
 void register_host_events() {/*{{{*/
     // Register events for a new host
 }/*}}}*/
@@ -149,29 +177,8 @@ int main(int argc, char *argv[]) {/*{{{*/
 
     // Register DBus handlers/*{{{*/
     PRINTD(3, "Registering DBus functions")
-    DBusError dberr;
-    dbus_error_init(&dberr);
-    dbus = dbus_bus_get(DBUS_BUS_SESSION, &dberr);
-    if (!connection || dbus == NULL) {
-        fprintf(stderr, "Failed to connect to DBus: %s", dberr.message);
-        dbus_error_free(&dberr);
-        quit();
-    } 
-
-
-    int owner = dbus_bus_request_name(dbus, DBUS_NAME, DBUS_NAME_FLAG_REPLACE_EXISTING, &dberr);
-    if (dbus_error_is_set(&dberr)) {
-        fprintf(stderr, "DBus Name Error (%s)\n", dberr.message);
-        dbus_error_free(&dberr);
-        quit();
-    } 
-
-    if (DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER != ret) {
-        fprintf(stderr, "Not Primary Owner (%d)\n", owner);
-        quit()
-    }
-    dbus_error_free(&dberr);
-    // Register functions
+    init_dbus();
+    load_dbus_functions();
     // Will dbus connection work as socket for event callback?
 /*}}}*/
 
