@@ -200,24 +200,24 @@ int main(int argc, char *argv[]) {/*{{{*/
     }
     configure_socket(accept_fd);
     struct sockaddr_in addr_in;
-    memset(addr_in, '\0', sizeof(addr_in));
+    memset(&addr_in, '\0', sizeof(addr_in));
     addr_in.sin_family = AF_INET;
-    addr_in.sin_addr.sin_addr = INADDR_ANY;
+    addr_in.sin_addr.s_addr = INADDR_ANY;
     addr_in.sin_port = htons(port);
 
-    int out = bind(accept_fd, (struct sockaddr_in*)&addr_in, sizeof(addr_in));
+    int out = bind(accept_fd, (struct sockaddr*)&addr_in, sizeof(addr_in));
     if (out < 0) {
         DIE("Failed to bind socket");
     }
 
-    out = listen(accept_fd, 10)
+    out = listen(accept_fd, 10);
     if (out < 0) {
         DIE("Failed to listen on socket");
     }/*}}}*/
 
     // Attempt to connect to all other hosts/*{{{*/
-    int i = 0;
-    for (i, i < MAX_HOSTS; i++) {
+    int i;
+    for (i = 0; i < MAX_HOSTS; i++) {
         if (strcmp(addresses[i], "dyn") != 0) connect_to_host(i);
     }/*}}}*/
 
