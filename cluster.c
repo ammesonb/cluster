@@ -8,7 +8,7 @@
 #include <ctype.h>
 #include <signal.h>
 #include <dbus/dbus.h>
-#include <socket.h>
+#include <sys/socket.h>
 #include <event.h>
 #include <confuse.h>
 #include <sys/stat.h>
@@ -29,8 +29,8 @@ int port, debug, interval, dead;
 char *email = NULL, *crit_files = NULL, *crit_dirs = NULL;
 
 // DBus
-char *DBUS_PATH = "/com/bammeson/cluster/"
-char *DBUS_NAME = "com.bammeson.cluster"
+char *DBUS_PATH = "/com/bammeson/cluster/";
+char *DBUS_NAME = "com.bammeson.cluster";
 DBusConnection *dbus;
 
 // Network
@@ -60,14 +60,14 @@ void quit() {/*{{{*/
 
 char* create_str(int length) {/*{{{*/
     char *s = (char*)malloc(sizeof(char) * (length + 1));
-    memset(s, '\0', sizeof(s));
+    memset(s, '\0', sizeof(&s));
     return s;
 }/*}}}*/
 
 char* read_file(char *name) {/*{{{*/
-    struct stat *s;
+    struct stat *s = NULL;
     stat(name, s);
-    int file = open(name);
+    int file = open(name, O_RDONLY);
     char *data = create_str(s->st_size);
     read(file, data, s->st_size);
     close(file);
@@ -96,7 +96,7 @@ void init_dbus() {/*{{{*/
     DBusError dberr;
     dbus_error_init(&dberr);
     dbus = dbus_bus_get(DBUS_BUS_SESSION, &dberr);
-    if (!connection || dbus == NULL) {
+    if (!dbus || dbus == NULL) {
         fprintf(stderr, "Failed to connect to DBus: %s", dberr.message);
         dbus_error_free(&dberr);
         quit();
@@ -110,9 +110,9 @@ void init_dbus() {/*{{{*/
         quit();
     } 
 
-    if (DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER != ret) {
+    if (DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER != owner) {
         fprintf(stderr, "Not Primary Owner (%d)\n", owner);
-        quit()
+        quit();
     }
     dbus_error_free(&dberr);
 }/*}}}*/
@@ -147,11 +147,11 @@ void update_host_state(int host, int state) {/*{{{*/
 int main(int argc, char *argv[]) {/*{{{*/
     // Load configuration/*{{{*/
     cfg_opt_t config[] = {
-        CFG_SIMPLE_INT("port", &PORT),
+        CFG_SIMPLE_INT("port", &port),
         CFG_SIMPLE_INT("beat_interval", &interval),
         CFG_SIMPLE_INT("dead_time", &dead),
         CFG_SIMPLE_STR("email", &email),
-        CFG_SIMPLE_BOOL("text_alerts", &text),
+        CFG_SIMPLE_BOOL("alert", &alert),
         CFG_SIMPLE_INT("verbosity", &debug),
         CFG_SIMPLE_STR("critical_files", &crit_files),
         CFG_SIMPLE_STR("critical_dirs", &crit_dirs),
@@ -183,6 +183,13 @@ int main(int argc, char *argv[]) {/*{{{*/
 /*}}}*/
 
     // Launch python script to handle extraneous requests such as file transfers
+    int is_child = fork();
+    if (is_child) {
+        char *args[] = {};
+        args[0] = "python";
+        args[1] = "handler.py";
+        execvp(args[0], &args[1]);
+    }
 
     // Bind socket and listen
 
