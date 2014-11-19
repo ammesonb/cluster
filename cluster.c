@@ -36,6 +36,7 @@ DBusConnection *dbus;
 // Network
 int accept_fd;
 char *addresses[MAX_HOSTS];
+char *passphrases[MAX_HOSTS];
 int sockets[MAX_HOSTS];
 int status[MAX_HOSTS];
 char *ping_msg;
@@ -120,12 +121,12 @@ void init_dbus() {/*{{{*/
 void load_dbus_functions() {/*{{{*/
 }/*}}}*/
 
-void register_host_events() {/*{{{*/
-    // Register events for a new host
-}/*}}}*/
-
 void register_event_base() {/*{{{*/
     // Register all events
+}/*}}}*/
+
+void register_host_events() {/*{{{*/
+    // Register events for a new host
 }/*}}}*/
 
 void accept_connection(int fd) {/*{{{*/
@@ -182,20 +183,47 @@ int main(int argc, char *argv[]) {/*{{{*/
     // Will dbus connection work as socket for event callback?
 /*}}}*/
 
-    // Launch python script to handle extraneous requests such as file transfers
+    // Launch python script to handle extraneous requests such as file transfers/*{{{*/
     int is_parent = fork();
     if (!is_parent) {
         char *args[] = {};
         args[0] = "python";
         args[1] = "handler.py";
         execvp(args[0], &args[1]);
+    }/*}}}*/
+
+    // Bind socket and listen/*{{{*/
+    PRINTD(3, "Creating server socket");
+    accept_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (accept_fd < 0) {
+        DIE("Failed to create bound socket");
+    }
+    configure_socket(accept_fd);
+    struct sockaddr_in addr_in;
+    memset(addr_in, '\0', sizeof(addr_in));
+    addr_in.sin_family = AF_INET;
+    addr_in.sin_addr.sin_addr = INADDR_ANY;
+    addr_in.sin_port = htons(port);
+
+    int out = bind(accept_fd, (struct sockaddr_in*)&addr_in, sizeof(addr_in));
+    if (out < 0) {
+        DIE("Failed to bind socket");
     }
 
-    // Bind socket and listen
+    out = listen(accept_fd, 10)
+    if (out < 0) {
+        DIE("Failed to listen on socket");
+    }/*}}}*/
 
-    // Attempt to connect to all other hosts
+    // Attempt to connect to all other hosts/*{{{*/
+    int i = 0;
+    for (i, i < MAX_HOSTS; i++) {
+        if (strcmp(addresses[i], "dyn") != 0) connect_to_host(i);
+    }/*}}}*/
 
-    // Register event handlers for bind and any connected hosts
+    // Register event handlers for bind and any connected hosts/*{{{*/
+    register_event_base();
+    register_host_events();/*}}}*/
 
     return 0;
 }/*}}}*/
