@@ -82,6 +82,41 @@ char* read_file(char *name) {/*{{{*/
 
 void configure_socket(int sockfd) {/*{{{*/
     // Set various socket options for address reuse, timeout, etc
+    int flags = fcntl(sockfd, F_GETFL);
+    flags |= O_NONBLOCK;
+    fcntl(sockfd, F_SETFL, flags);
+
+    int value = 1;
+    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &value, sizeof(value)) == -1) {
+        fprintf(stderr, "Failed to set option");
+        exit(1);
+    }
+
+    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &value, sizeof(value)) == -1) {
+        fprintf(stderr, "Failed to set option");
+        exit(1);
+    }
+
+    struct linger so_linger;
+    so_linger.l_onoff = 1;
+    so_linger.l_linger = 0;
+    if (setsockopt(sockfd, SOL_SOCKET, SO_LINGER, &so_linger, sizeof(so_linger)) == -1) {
+        fprintf(stderr, "Failed to set option");
+        exit(1);
+    }
+
+    struct timeval timeout;
+    timeout.tv_sec = 2;
+    timeout.tv_usec = 0;
+    if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, sizeof(timeout)) == -1) {
+        fprintf(stderr, "Failed to set option");
+        exit(1);
+    }
+    if (setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, (char*)&timeout, sizeof(timeout)) == -1) {
+        fprintf(stderr, "Failed to set option");
+        exit(1);
+    }
+
 }/*}}}*/
 
 void send_keepalive(int host) {/*{{{*/
