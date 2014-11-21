@@ -15,14 +15,15 @@
 #include <sys/types.h>
 /*}}}*/
 /*{{{ Constants */
-#define   MAX_HOSTS   100
-#define   DBUSPATH    "/com/bammeson/cluster"
-#define   DBUSNAME    "com.bammeson.cluster"
+#define   MAX_HOSTS    100
+#define   MAX_SERVICES 50
+#define   DBUSPATH     "/com/bammeson/cluster"
+#define   DBUSNAME     "com.bammeson.cluster"
 /*}}}*/
 /*{{{ Global variables */
 // Config
 char* str_id = NULL;
-int id = -1;
+int id = -1, am_dynamic = 0;
 cfg_t *cfg;
 cfg_bool_t alert = cfg_false;
 int port, debug, interval, dead;
@@ -40,8 +41,11 @@ char *addresses[MAX_HOSTS];
 char *passphrases[MAX_HOSTS];
 int sockets[MAX_HOSTS];
 int status[MAX_HOSTS];
+int num_hosts;
+char **services;
+int **service_hosts;
 char *ping_msg;
-int my_id;
+char *my_pass;
 
 // Events
 struct event_base  *base;
@@ -96,6 +100,7 @@ void load_hosts(char *hosts) {/*{{{*/
         if (strstr(host, "___") == NULL) {
             strcpy(addresses[i], host);
         } else {
+            if (i == id) am_dynamic = 1;
             char *addr = strtok(host, "___");
             char *pass = strtok(host, "___");
             if (strlen(pass) < MIN_PASS_LENGTH) {
@@ -109,10 +114,33 @@ void load_hosts(char *hosts) {/*{{{*/
             strcpy(passphrases[i], pass);
         }
         i++;
+        host = strtok(hosts, "\n");
     }
+    num_hosts = i;
 }/*}}}*/
 
-void load_services(char *services) {/*{{{*/
+void load_services(char *service_data) {/*{{{*/
+    service_hosts = (int**)malloc(sizeof(int*) * MAX_SERVICES * MAX_HOSTS);
+    char *service = strtok(service_data, "\n");
+    int i = 0;
+    while (service != NULL) {
+        char *service_name = strtok(service, " ");
+        strcpy(services[i], service_name);
+
+        int j = 0;
+        char *service_host = strtok(service, " ");
+        while (service_host != NULL) {
+            int h = atoi(service_host);
+            if (j == 0) {
+                service_hosts[i] = (int*)malloc(sizeof(int) * num_hosts);
+            }
+            service_hosts[i][j] = h;
+            j++;
+            service_host = strtok(service, " ");
+        }
+        i++;
+        service = strtok(service_data, "\n");
+    }
 }/*}}}*/
 
 void init_dbus() {/*{{{*/
@@ -171,6 +199,7 @@ int main(int argc, char *argv[]) {/*{{{*/
     // Load configuration/*{{{*/
     cfg_opt_t config[] = {
         CFG_SIMPLE_INT("port", &port),
+        CFG_SIMPLE_INT("id", &id),
         CFG_SIMPLE_INT("beat_interval", &interval),
         CFG_SIMPLE_INT("dead_time", &dead),
         CFG_SIMPLE_STR("email", &email),
@@ -185,10 +214,6 @@ int main(int argc, char *argv[]) {/*{{{*/
     cfg_parse(cfg, "cluster.conf");/*}}}*/
 
     PRINTD(3, "Loading configuration")/*{{{*/
-    // Determine my ID
-    str_id = read_file("/var/opt/cluster/id");
-    id = atoi(str_id);
-
     // Load secondary config files (hosts, services, etc)
     char *hosts = read_file("hosts");
     load_hosts(hosts);
