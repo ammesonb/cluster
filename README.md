@@ -35,29 +35,15 @@ This is a list of hosts. The order is arbitrary, but important. The
 line number the host is on uniquely identifies that host. Each line
 should have exactly one of two format entries. The line will contain
 either an IP address/URL a host will be found at OR a name for the
-host with a trailing comma, indicating the host's address is unknown
-and it will connect to the known hosts. Consider this case:
+host, indicating the host's address is unknown and it will connect
+to the known hosts. In this case, a passphrase should be included,
+separated by a comma. A sample configuration file may look like:
 ```
-There are two laptops and a server. The server and second laptop
-are connected, the first is not.
-
-        S
-         \
-      L   P
-
-L connects to the internet. The following connection is established:
-
-        S
-       / \
-      L   P
-
-Since L and P cannot know eachother's address, S will now send P the
-location from which L connected, so the final graph is:
-
-        S
-       / \
-      L - P
+server1.example.com
+server2.example.com
+laptop1,open sesame
 ```
+Note the passphrase must contain at least 8 characters.
 
 ### services
 The services file should be a newline-separated file of SystemV
@@ -80,3 +66,33 @@ keepalive packets, log verbosity, etc.
 Cluster will register several DBus handlers. These will do things
 such as send configuration and program file updates, reload config
 files, and notify other hosts of status changes.
+
+## Example behavior
+```
+There are two laptops and a server. The server and second laptop
+are connected, the first laptop is not. Services are stable.
+
+        S
+         \
+      L   P
+
+L connects to the internet. The following connection is established,
+where L sends a username and passphrase to validate itself with S.
+S will stop any services on which L has a higher priority, L will
+stop any services for which S has a higher priority.
+
+        S
+       / \
+      L   P
+
+Since L and P cannot know the other's address via the configuration file,
+S will now send P the location from which L connected. L will not attempt
+to connect to P. Authentication is still necessary. P will stop any services
+for which L has higher priority, and L will do the same. All nodes are
+connected, all services are stable.
+
+        S
+       / \
+      L - P
+```
+

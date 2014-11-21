@@ -27,6 +27,7 @@ cfg_t *cfg;
 cfg_bool_t alert = cfg_false;
 int port, debug, interval, dead;
 char *email = NULL, *crit_files = NULL, *crit_dirs = NULL;
+int MIN_PASS_LENGTH = 8;
 
 // DBus
 char *DBUS_PATH = "/com/bammeson/cluster/";
@@ -88,6 +89,27 @@ void recv_data(int host) {/*{{{*/
 }/*}}}*/
 
 void load_hosts(char *hosts) {/*{{{*/
+    char *host = strtok(hosts, "\n");
+    int i = 0;
+    while (host != NULL) {
+        // If host is not dynamic
+        if (strstr(host, "___") == NULL) {
+            strcpy(addresses[i], host);
+        } else {
+            char *addr = strtok(host, "___");
+            char *pass = strtok(host, "___");
+            if (strlen(pass) < MIN_PASS_LENGTH) {
+                char *err = create_str(500);
+                sprintf(err, "Passphrase on line %d must be at least 4 characters!\n", i);
+                fprintf(stderr, "%s", err);
+                free(err);
+                quit(0);
+            }
+            strcpy(addresses[i], addr);
+            strcpy(passphrases[i], pass);
+        }
+        i++;
+    }
 }/*}}}*/
 
 void load_services(char *services) {/*{{{*/
