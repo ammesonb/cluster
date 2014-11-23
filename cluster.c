@@ -297,7 +297,7 @@ int main(int argc, char *argv[]) {/*{{{*/
         quit(0);
     }
     if (signal(SIGTERM, quit) == SIG_ERR) {
-        fprintf(stderr, "Can't catch SIGKILL");
+        fprintf(stderr, "Can't catch SIGTERM");
         quit(0);
     }/*}}}*/
 
