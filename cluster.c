@@ -37,13 +37,14 @@ DBusConnection *dbus;
 
 // Network
 int accept_fd;
-char *addresses[MAX_HOSTS];
-char *passphrases[MAX_HOSTS];
+char **addresses;
+char **passphrases;
 int sockets[MAX_HOSTS];
 int status[MAX_HOSTS];
-int num_hosts;
+int num_hosts = 0;
 char **services;
 int **service_hosts;
+int num_services = 0;
 char *ping_msg;
 char *my_pass;
 
@@ -61,6 +62,13 @@ int BASE_INITED = 0;
 void quit(int sig) {/*{{{*/
     // Clean up
     free(str_id);
+    free(addresses);
+    free(passphrases);
+    free(services);
+    int i;
+    for (i = 0; i < num_services; i++) free(service_hosts[i]);
+    free(services_hosts);
+
     exit(0);
 }/*}}}*/
 
@@ -72,11 +80,13 @@ char* create_str(int length) {/*{{{*/
 
 char* read_file(char *name) {/*{{{*/
     struct stat *s = NULL;
+    s = (struct stat*)malloc(sizeof(struct stat));
     stat(name, s);
     int file = open(name, O_RDONLY);
     char *data = create_str(s->st_size);
     read(file, data, s->st_size);
     close(file);
+    free(s);
     return data;
 }/*}}}*/
 
@@ -119,7 +129,7 @@ void configure_socket(int sockfd) {/*{{{*/
 
 }/*}}}*/
 
-void send_keepalive(int host) {/*{{{*/
+void send_keepalive(int host, short ev, void* arg) {/*{{{*/
     // Send a keepalive packet to a given host
 }/*}}}*/
 
@@ -128,42 +138,45 @@ void recv_data(int host) {/*{{{*/
 }/*}}}*/
 
 void load_hosts(char *hosts) {/*{{{*/
+    addresses = (char**)malloc(sizeof(char*) * MAX_HOSTS);
+    passphrases = (char**)malloc(sizeof(char*) * MAX_HOSTS);
     char *host = strtok(hosts, "\n");
     int i = 0;
     while (host != NULL) {
         // If host is not dynamic
-        if (strstr(host, "___") == NULL) {
-            strcpy(addresses[i], host);
+        if (strstr(host, ".") != NULL) {
+            addresses[i] = host;
         } else {
             if (i == id) am_dynamic = 1;
             char *addr = strtok(host, "___");
             char *pass = strtok(host, "___");
             if (strlen(pass) < MIN_PASS_LENGTH) {
                 char *err = create_str(500);
-                sprintf(err, "Passphrase on line %d must be at least 4 characters!\n", i);
+                sprintf(err, "Passphrase on line %d must be at least %d characters!\n", i, MIN_PASS_LENGTH);
                 fprintf(stderr, "%s", err);
                 free(err);
                 quit(0);
             }
-            strcpy(addresses[i], addr);
-            strcpy(passphrases[i], pass);
+            addresses[i] = addr;
+            passphrases[i] = pass;
         }
         i++;
-        host = strtok(hosts, "\n");
+        host = strtok(NULL, "\n");
     }
     num_hosts = i;
 }/*}}}*/
 
 void load_services(char *service_data) {/*{{{*/
+    services = (char**)malloc(sizeof(char*) * MAX_SERVICES);
     service_hosts = (int**)malloc(sizeof(int*) * MAX_SERVICES * MAX_HOSTS);
     char *service = strtok(service_data, "\n");
     int i = 0;
     while (service != NULL) {
         char *service_name = strtok(service, " ");
-        strcpy(services[i], service_name);
+        services[i] = service_name;
 
         int j = 0;
-        char *service_host = strtok(service, " ");
+        char *service_host = strtok(NULL, " ");
         while (service_host != NULL) {
             int h = atoi(service_host);
             if (j == 0) {
@@ -171,10 +184,10 @@ void load_services(char *service_data) {/*{{{*/
             }
             service_hosts[i][j] = h;
             j++;
-            service_host = strtok(service, " ");
+            service_host = strtok(NULL, " ");
         }
         i++;
-        service = strtok(service_data, "\n");
+        service = strtok(NULL, "\n");
     }
 }/*}}}*/
 
@@ -187,7 +200,6 @@ void init_dbus() {/*{{{*/
         dbus_error_free(&dberr);
         quit(0);
     } 
-
 
     int owner = dbus_bus_request_name(dbus, DBUS_NAME, DBUS_NAME_FLAG_REPLACE_EXISTING, &dberr);
     if (dbus_error_is_set(&dberr)) {
@@ -206,15 +218,33 @@ void init_dbus() {/*{{{*/
 void load_dbus_functions() {/*{{{*/
 }/*}}}*/
 
+void accept_connection(int, short, void*);
+void register_host_events();
 void register_event_base() {/*{{{*/
     // Register all events
+    if (BASE_INITED) event_base_loopexit(base, NULL);
+    base = event_base_new();
+
+    accept_conn = event_new(base, accept_fd, EV_READ|EV_PERSIST, accept_connection, NULL);
+    event_add(accept_conn, NULL);
+
+    keepalive = event_new(base, -1, EV_PERSIST, send_keepalive, NULL);
+    struct timeval keepalive_tv;
+    keepalive_tv.tv_sec = 5;
+    keepalive_tv.tv_usec = 0;
+    event_add(keepalive, &keepalive_tv);
+
+    BASE_INITED = 1;
+
+    register_host_events();
+    event_base_dispatch(base);
 }/*}}}*/
 
 void register_host_events() {/*{{{*/
     // Register events for a new host
 }/*}}}*/
 
-void accept_connection(int fd) {/*{{{*/
+void accept_connection(int fd, short ev, void *arg) {/*{{{*/
     /* Establish new connection
        Ensure sent ID within bounds and 
        IP being connected from matches hosts
@@ -248,13 +278,14 @@ int main(int argc, char *argv[]) {/*{{{*/
     cfg = cfg_init(config, 0);
     cfg_parse(cfg, "cluster.conf");/*}}}*/
 
-    PRINTD(3, "Loading configuration")/*{{{*/
+    PRINTD(3, "Loading hosts")/*{{{*/
     // Load secondary config files (hosts, services, etc)
     char *hosts = read_file("hosts");
     load_hosts(hosts);
 
-    char *services = read_file("services");
-    load_services(services);/*}}}*/
+    PRINTD(3, "Loading services");
+    char *service_data = read_file("services");
+    load_services(service_data);/*}}}*/
 
     // Register signals/*{{{*/
     if (signal(SIGINT, quit) == SIG_ERR) {
@@ -265,12 +296,8 @@ int main(int argc, char *argv[]) {/*{{{*/
         fprintf(stderr, "Can't catch SIGQUIT");
         quit(0);
     }
-    if (signal(SIGKILL, quit) == SIG_ERR) {
-        fprintf(stderr, "Can't catch SIGKILL");
-        quit(0);
-    }
     if (signal(SIGTERM, quit) == SIG_ERR) {
-        fprintf(stderr, "Can't catch SIGTERM");
+        fprintf(stderr, "Can't catch SIGKILL");
         quit(0);
     }/*}}}*/
 
@@ -287,7 +314,12 @@ int main(int argc, char *argv[]) {/*{{{*/
         char *args[] = {};
         args[0] = "python";
         args[1] = "handler.py";
-        execvp(args[0], &args[1]);
+        args[2] = NULL;
+        int val = execvp(args[0], &args[0]);
+        if (val) {
+            fprintf(stderr, "Failed to launch python script: %s!\n", strerror(errno));
+            exit(1);
+        }
     }/*}}}*/
 
     // Bind socket and listen/*{{{*/
@@ -315,7 +347,8 @@ int main(int argc, char *argv[]) {/*{{{*/
 
     // Attempt to connect to all other hosts/*{{{*/
     int i;
-    for (i = 0; i < MAX_HOSTS; i++) {
+    for (i = 0; i < num_hosts; i++) {
+        printf("Attempting to connect to host %d at %s\n", i, addresses[i]);
         if (strcmp(addresses[i], "dyn") != 0) connect_to_host(i);
     }/*}}}*/
 
