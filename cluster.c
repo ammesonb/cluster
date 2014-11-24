@@ -67,7 +67,7 @@ void quit(int sig) {/*{{{*/
     free(services);
     int i;
     for (i = 0; i < num_services; i++) free(service_hosts[i]);
-    free(services_hosts);
+    free(service_hosts);
 
     exit(0);
 }/*}}}*/
