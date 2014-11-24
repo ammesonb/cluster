@@ -131,6 +131,16 @@ void configure_socket(int sockfd) {/*{{{*/
 
 void send_keepalive(int host, short ev, void* arg) {/*{{{*/
     // Send a keepalive packet to a given host
+    int i;
+    int length = strlen(ping_msg);
+    PRINTD(3, "Sending keepalive to live clients");
+    for (i = 0; i < num_hosts; i++) {
+        if (!status[i]) {continue};
+        int out = write(sockets[i], ping_msg, length);
+        if (out < 1) {
+            update_host_state(i, 0);
+        }
+    }
 }/*}}}*/
 
 void recv_data(int host) {/*{{{*/
@@ -276,7 +286,8 @@ int main(int argc, char *argv[]) {/*{{{*/
     };
 
     cfg = cfg_init(config, 0);
-    cfg_parse(cfg, "cluster.conf");/*}}}*/
+    cfg_parse(cfg, "cluster.conf");
+    sprintf(ping_msg, "%d-ping", id);/*}}}*/
 
     PRINTD(3, "Loading hosts")/*{{{*/
     // Load secondary config files (hosts, services, etc)
