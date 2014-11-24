@@ -67,7 +67,7 @@ Cluster will register several DBus handlers. These will do things
 such as send configuration and program file updates, reload config
 files, and notify other hosts of status changes.
 
-## Example behavior
+## Example connection behavior
 ```
 There are two laptops and a server. The server and second laptop
 are connected, the first laptop is not. Services are stable.

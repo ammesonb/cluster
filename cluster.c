@@ -129,15 +129,18 @@ void configure_socket(int sockfd) {/*{{{*/
 
 }/*}}}*/
 
+void update_host_state(int, int);
 void send_keepalive(int host, short ev, void* arg) {/*{{{*/
     // Send a keepalive packet to a given host
     int i;
     int length = strlen(ping_msg);
     PRINTD(3, "Sending keepalive to live clients");
     for (i = 0; i < num_hosts; i++) {
-        if (!status[i]) {continue};
+        if (!status[i]) {continue;}
         int out = write(sockets[i], ping_msg, length);
         if (out < 1) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK ||
+                errno == EINTR) {continue;}
             update_host_state(i, 0);
         }
     }
