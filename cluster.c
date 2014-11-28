@@ -34,11 +34,11 @@ char *email = NULL, *crit_files = NULL, *crit_dirs = NULL;
 int MIN_PASS_LENGTH = 8;/*}}}*/
 
 // DBus/*{{{*/
-char *DBUS_PATH = "/com/bammeson/cluster/";
+char *DBUS_PATH = "/com/bammeson/cluster";
 char *DBUS_NAME = "com.bammeson.cluster";
 DBusConnection *conn;
 int handler_pid = -1;
-pthread_t *dbus_dispatcher;/*}}}*/
+pthread_t dbus_dispatcher;/*}}}*/
 
 // Network/*{{{*/
 int accept_fd;
@@ -63,10 +63,15 @@ int BASE_INITED = 0;/*}}}*/
 char *introspec_xml = 
 "<!DOCTYPE node PUBLIC \"-//freedesktop//DTD D-BUS Object Introspection 1.0//EN\"\n"
 "\"http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd\">\n"
-"<node name=\"/com/bammeson/dbusTest\">\n"
+"<node name=\"/com/bammeson/cluster\">\n"
 "  <interface name=\"org.freedesktop.DBus.Introspectable\">\n"
 "    <method name=\"Introspect\">\n"
 "      <arg name=\"data\" direction=\"out\" type=\"s\"/>\n"
+"    </method>\n"
+"  </interface>\n"
+"  <interface name=\"com.bammeson.cluster\">\n"
+"    <method name=\"updateHandlerPID\">\n"
+"      <arg type=\"i\" direction=\"in\"/>\n"
 "    </method>\n"
 "  </interface>\n"
 "</node>\n";/*}}}*/
@@ -79,19 +84,22 @@ char *introspec_xml =
 void quit(int sig) {/*{{{*/
     // Clean up
     free(str_id);
+    free(ping_msg);
     free(addresses);
     free(passphrases);
     free(services);
     int i;
-    for (i = 0; i < num_services; i++) free(service_hosts[i]);
+    for (i = 0; i <= num_services; i++) free(service_hosts[i]);
     free(service_hosts);
+    event_base_loopexit(base, NULL);
+    event_base_free(base);
 
     exit(0);
 }/*}}}*/
 
 char* create_str(int length) {/*{{{*/
     char *s = (char*)malloc(sizeof(char) * (length + 1));
-    memset(s, '\0', sizeof(&s));
+    memset(s, '\0', length + 1);
     return s;
 }/*}}}*/
 
@@ -222,24 +230,32 @@ void load_services(char *service_data) {/*{{{*/
 }/*}}}*/
 
 DBUS_FUNC(dbus_handler) {/*{{{*/
-    int handled =0;
+    int handled = 0;
     const char *iface = dbus_message_get_interface(dbmsg);
     if (!strcmp(iface, DBUS_INTERFACE_INTROSPECTABLE)) {
         DBUS_INTROSPEC
         handled = 1;
+    } else if (!strcmp(iface, DBUS_NAME)) {
+        if (dbus_message_is_method_call(dbmsg, DBUS_NAME, "updateHandlerPID")) {
+            DBUS_GET_ARGS(DBUS_TYPE_INT32, &handler_pid);
+            char *s = create_str(100);
+            sprintf(s, "Handler pid set to %d", handler_pid);
+            PRINTD(3, s);
+            free(s);
+            handled = 1;
+        }
     }
 
     return handled ? DBUS_HANDLER_RESULT_HANDLED : DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 }/*}}}*/
 
-void* dbus_loop(void* args) {/*{{{*/
-    dbus_connection_read_write_dispatch(conn, -1);
-    return NULL;
+void dbus_loop(void* args) {/*{{{*/
+    while (dbus_connection_read_write_dispatch(conn, -1));
 }/*}}}*/
 
 int init_dbus() {/*{{{*/
     DBUS_INIT(DBUS_NAME, DBUS_PATH, dbus_handler)
-    pthread_create(dbus_dispatcher, NULL, &dbus_loop, NULL);
+    pthread_create(&dbus_dispatcher, NULL, (void*)dbus_loop, NULL);
     return EXIT_SUCCESS;
 }/*}}}*/
 
@@ -302,6 +318,7 @@ int main(int argc, char *argv[]) {/*{{{*/
 
     cfg = cfg_init(config, 0);
     cfg_parse(cfg, "cluster.conf");
+    ping_msg = create_str(9);
     sprintf(ping_msg, "%d-ping", id);/*}}}*/
 
     PRINTD(3, "Loading hosts")/*{{{*/
@@ -328,13 +345,11 @@ int main(int argc, char *argv[]) {/*{{{*/
     }/*}}}*/
 
     // Register DBus handlers/*{{{*/
-    PRINTD(3, "Registering DBus functions")
+    PRINTD(3, "Registering DBus functions");
     int failed = init_dbus();
     if (failed) {
         DIE("Couldn't establish DBus connection");
     }
-
-    // Will dbus connection work as socket for event callback?
 /*}}}*/
 
     // Launch python script to handle extraneous requests such as file transfers/*{{{*/
