@@ -72,6 +72,7 @@ char *introspec_xml =
 "  <interface name=\"com.bammeson.cluster\">\n"
 "    <method name=\"updateHandlerPID\">\n"
 "      <arg type=\"i\" direction=\"in\"/>\n"
+"      <arg type=\"b\" direction=\"out\"/>\n"
 "    </method>\n"
 "  </interface>\n"
 "</node>\n";/*}}}*/
@@ -242,6 +243,11 @@ DBUS_FUNC(dbus_handler) {/*{{{*/
             sprintf(s, "Handler pid set to %d", handler_pid);
             PRINTD(3, s);
             free(s);
+            int ret = 1;
+            DBUS_REPLY_INIT
+            DBUS_ADD_ARGS
+            DBUS_ADD_BOOL(&ret)
+            DBUS_REPLY_SEND
             handled = 1;
         }
     }
@@ -392,6 +398,7 @@ int main(int argc, char *argv[]) {/*{{{*/
     // Attempt to connect to all other hosts/*{{{*/
     int i;
     for (i = 0; i < num_hosts; i++) {
+        if (i == id) continue;
         printf("Attempting to connect to host %d at %s\n", i, addresses[i]);
         if (strcmp(addresses[i], "dyn") != 0) connect_to_host(i);
     }/*}}}*/

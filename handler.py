@@ -1,11 +1,11 @@
-# myservice.py
-# simple python-dbus service that exposes 1 method called hello()
-
+import os
 import gtk
 import dbus
 import dbus.service
 from dbus.mainloop.glib import DBusGMainLoop
 
+dbusMainName = 'com.bammeson.cluster'
+dbusMainPath = '/com/bammeson/cluster'
 dbusName = 'com.bammeson.clusterhandler'
 dbusPath = '/com/bammeson/clusterhandler'
 
@@ -24,5 +24,9 @@ class ClusterService(dbus.service.Object):
         print device + ' is online'
 
 DBusGMainLoop(set_as_default=True)
+bus = dbus.SessionBus()
+obj = bus.get_object(dbusMainName, dbusMainPath)
+iface = dbus.Interface(obj, dbusMainName)
+iface.updateHandlerPID(os.getpid())
 myservice = ClusterService()
 gtk.main()
