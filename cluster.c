@@ -11,8 +11,11 @@
 #include <sys/socket.h>
 #include <event.h>
 #include <confuse.h>
+#include <pthread.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+
+#include "dbus_common.h"
 /*}}}*/
 /*{{{ Constants */
 #define   MAX_HOSTS    100
@@ -21,21 +24,23 @@
 #define   DBUSNAME     "com.bammeson.cluster"
 /*}}}*/
 /*{{{ Global variables */
-// Config
+// Config/*{{{*/
 char* str_id = NULL;
 int id = -1, am_dynamic = 0;
 cfg_t *cfg;
 cfg_bool_t alert = cfg_false;
 int port, debug, interval, dead;
 char *email = NULL, *crit_files = NULL, *crit_dirs = NULL;
-int MIN_PASS_LENGTH = 8;
+int MIN_PASS_LENGTH = 8;/*}}}*/
 
-// DBus
+// DBus/*{{{*/
 char *DBUS_PATH = "/com/bammeson/cluster/";
 char *DBUS_NAME = "com.bammeson.cluster";
-DBusConnection *dbus;
+DBusConnection *conn;
+int handler_pid = -1;
+pthread_t *dbus_dispatcher;/*}}}*/
 
-// Network
+// Network/*{{{*/
 int accept_fd;
 char **addresses;
 char **passphrases;
@@ -46,13 +51,25 @@ char **services;
 int **service_hosts;
 int num_services = 0;
 char *ping_msg;
-char *my_pass;
+char *my_pass;/*}}}*/
 
-// Events
+// Events/*{{{*/
 struct event_base  *base;
 struct event *accept_conn, *keepalive;
 struct event client_events[MAX_HOSTS];
-int BASE_INITED = 0;
+int BASE_INITED = 0;/*}}}*/
+
+// Introspection for DBus/*{{{*/
+char *introspec_xml = 
+"<!DOCTYPE node PUBLIC \"-//freedesktop//DTD D-BUS Object Introspection 1.0//EN\"\n"
+"\"http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd\">\n"
+"<node name=\"/com/bammeson/dbusTest\">\n"
+"  <interface name=\"org.freedesktop.DBus.Introspectable\">\n"
+"    <method name=\"Introspect\">\n"
+"      <arg name=\"data\" direction=\"out\" type=\"s\"/>\n"
+"    </method>\n"
+"  </interface>\n"
+"</node>\n";/*}}}*/
 /*}}}*/
 /*{{{ Macros */
 #define   DIE(str) fprintf(stderr, "%s\n", str); exit(1);
@@ -204,31 +221,26 @@ void load_services(char *service_data) {/*{{{*/
     }
 }/*}}}*/
 
-void init_dbus() {/*{{{*/
-    DBusError dberr;
-    dbus_error_init(&dberr);
-    dbus = dbus_bus_get(DBUS_BUS_SESSION, &dberr);
-    if (!dbus || dbus == NULL) {
-        fprintf(stderr, "Failed to connect to DBus: %s", dberr.message);
-        dbus_error_free(&dberr);
-        quit(0);
-    } 
-
-    int owner = dbus_bus_request_name(dbus, DBUS_NAME, DBUS_NAME_FLAG_REPLACE_EXISTING, &dberr);
-    if (dbus_error_is_set(&dberr)) {
-        fprintf(stderr, "DBus Name Error (%s)\n", dberr.message);
-        dbus_error_free(&dberr);
-        quit(0);
-    } 
-
-    if (DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER != owner) {
-        fprintf(stderr, "Not Primary Owner (%d)\n", owner);
-        quit(0);
+DBUS_FUNC(dbus_handler) {/*{{{*/
+    int handled =0;
+    const char *iface = dbus_message_get_interface(dbmsg);
+    if (!strcmp(iface, DBUS_INTERFACE_INTROSPECTABLE)) {
+        DBUS_INTROSPEC
+        handled = 1;
     }
-    dbus_error_free(&dberr);
+
+    return handled ? DBUS_HANDLER_RESULT_HANDLED : DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 }/*}}}*/
 
-void load_dbus_functions() {/*{{{*/
+void* dbus_loop(void* args) {/*{{{*/
+    dbus_connection_read_write_dispatch(conn, -1);
+    return NULL;
+}/*}}}*/
+
+int init_dbus() {/*{{{*/
+    DBUS_INIT(DBUS_NAME, DBUS_PATH, dbus_handler)
+    pthread_create(dbus_dispatcher, NULL, &dbus_loop, NULL);
+    return EXIT_SUCCESS;
 }/*}}}*/
 
 void accept_connection(int, short, void*);
@@ -317,8 +329,11 @@ int main(int argc, char *argv[]) {/*{{{*/
 
     // Register DBus handlers/*{{{*/
     PRINTD(3, "Registering DBus functions")
-    init_dbus();
-    load_dbus_functions();
+    int failed = init_dbus();
+    if (failed) {
+        DIE("Couldn't establish DBus connection");
+    }
+
     // Will dbus connection work as socket for event callback?
 /*}}}*/
 

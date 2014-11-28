@@ -1,4 +1,4 @@
-DBUS_FLAGS = $(shell pkg-config dbus-1 --cflags)
+LINK_FLAGS = $(shell pkg-config --cflags --libs dbus-1 libevent libconfuse)
 
 all:
-	clang -Wall cluster.c -o cluster.out $(DBUS_FLAGS) -levent -ldbus-1 -lconfuse
+	clang -Wall cluster.c -o cluster.out $(LINK_FLAGS) -pthread
