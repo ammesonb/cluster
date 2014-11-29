@@ -82,6 +82,23 @@ char *introspec_xml =
 #define   DIE(str) fprintf(stderr, "%s\n", str); exit(1);
 #define   PRINTD(level, str) if (debug >= level) printf("DEBUG%d: %s\n", level, str);
 /*}}}*/
+/*{{{ Function templates*/
+void quit(int);
+char* create_str(int);
+char* read_file(char*);
+void configure_socket(int);
+void send_keepalive(int, short, void*);
+void recv_data(int);
+void load_hosts(char*);
+void load_services(char*);
+void dbus_loop(void*);
+int init_dbus();
+void register_event_base();
+void register_host_events();
+void accept_connection(int, short, void *arg);
+void connect_to_host(int);
+int update_host_state(int, int);
+/*}}}*/
 
 void quit(int sig) {/*{{{*/
     // Clean up
@@ -157,7 +174,6 @@ void configure_socket(int sockfd) {/*{{{*/
 
 }/*}}}*/
 
-int update_host_state(int, int);
 void send_keepalive(int host, short ev, void* arg) {/*{{{*/
     // Send a keepalive packet to a given host
     int i;
@@ -267,8 +283,6 @@ int init_dbus() {/*{{{*/
     return EXIT_SUCCESS;
 }/*}}}*/
 
-void accept_connection(int, short, void*);
-void register_host_events();
 void register_event_base() {/*{{{*/
     // Register all events
     if (BASE_INITED) event_base_loopexit(base, NULL);
