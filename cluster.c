@@ -1,5 +1,4 @@
-/*{{{ Includes */
-#include <stdio.h>
+/*{{{ Includes */ #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -36,6 +35,8 @@ int MIN_PASS_LENGTH = 8;/*}}}*/
 // DBus/*{{{*/
 char *DBUS_PATH = "/com/bammeson/cluster";
 char *DBUS_NAME = "com.bammeson.cluster";
+char *DBUS_HANDLER_PATH = "/com/bammeson/clusterHandler";
+char *DBUS_HANDLER_NAME = "com.bammeson.clusterHandler";
 DBusConnection *conn;
 int handler_pid = -1;
 pthread_t dbus_dispatcher;/*}}}*/
@@ -94,6 +95,7 @@ void quit(int sig) {/*{{{*/
     free(service_hosts);
     event_base_loopexit(base, NULL);
     event_base_free(base);
+    dbus_connection_unref(conn);
 
     exit(0);
 }/*}}}*/
@@ -155,7 +157,7 @@ void configure_socket(int sockfd) {/*{{{*/
 
 }/*}}}*/
 
-void update_host_state(int, int);
+int update_host_state(int, int);
 void send_keepalive(int host, short ev, void* arg) {/*{{{*/
     // Send a keepalive packet to a given host
     int i;
@@ -245,9 +247,9 @@ DBUS_FUNC(dbus_handler) {/*{{{*/
             free(s);
             int ret = 1;
             DBUS_REPLY_INIT
-            DBUS_ADD_ARGS
+            DBUS_ADD_ARGS(db_reply_msg)
             DBUS_ADD_BOOL(&ret)
-            DBUS_REPLY_SEND
+            DBUS_REPLY_SEND(db_reply_msg)
             handled = 1;
         }
     }
@@ -303,8 +305,16 @@ void connect_to_host(int host) {/*{{{*/
     // Attempt to connect to a given host and register events for it
 }/*}}}*/
 
-void update_host_state(int host, int state) {/*{{{*/
+int update_host_state(int host, int state) {/*{{{*/
     // Update host status and dispatch necessary signals
+    if (status[host] == state) return 0;
+    status[host] = state;
+    char *func = state ? "hostOnline" : "hostOffline";
+    DBUS_INIT_METHOD_CALL(DBUS_HANDLER_NAME, DBUS_HANDLER_PATH, DBUS_HANDLER_NAME, func);
+    DBUS_ADD_ARGS(db_call_msg)
+    DBUS_ADD_INT32(&state);
+    DBUS_REPLY_SEND(db_call_msg);
+    return 0;
 }/*}}}*/
 
 int main(int argc, char *argv[]) {/*{{{*/

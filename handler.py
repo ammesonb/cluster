@@ -16,12 +16,12 @@ class ClusterService(dbus.service.Object):
         dbus.service.Object.__init__(self, bus_name, dbusPath)
 
     @dbus.service.method(dbusName)
-    def deviceOffline(self, device):
-        print device + ' is offline'
+    def hostOffline(self, host):
+        print host + ' is offline'
 
     @dbus.service.method(dbusName)
-    def deviceOnline(self, device):
-        print device + ' is online'
+    def hostOnline(self, host):
+        print host + ' is online'
 
 DBusGMainLoop(set_as_default=True)
 bus = dbus.SessionBus()

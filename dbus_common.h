@@ -31,11 +31,11 @@
     DBusMessage *db_reply_msg = dbus_message_new_method_return(dbmsg); \
     if (!db_reply_msg) return DBUS_HANDLER_RESULT_NEED_MEMORY;
 
-#define DBUS_REPLY_SEND \
-    if (!dbus_connection_send(conn, db_reply_msg, NULL)) \
+#define DBUS_REPLY_SEND(msg) \
+    if (!dbus_connection_send(conn, msg, NULL)) \
         return DBUS_HANDLER_RESULT_NEED_MEMORY; \
     dbus_connection_flush(conn); \
-    dbus_message_unref(db_reply_msg);
+    dbus_message_unref(msg);
 
 #define DBUS_SIGNAL_INIT \
     DBusMessage *db_reply_message = dbus_message_new_signal(path, iface, signal); \
@@ -48,9 +48,16 @@
     dbus_connection_flush(conn); \
     return DBUS_HANDLER_RESULT_HANDLED;
 
-#define DBUS_ADD_ARGS \
+#define DBUS_INIT_METHOD_CALL(obj, path, iface, method) \
+    DBusMessage *db_call_msg = dbus_message_new_method_call(obj, path, iface, method); \
+    if (db_call_msg == NULL) { \
+        fprintf(stderr, "Failed to create method call"); \
+        return DBUS_HANDLER_RESULT_NEED_MEMORY; \
+    }
+
+#define DBUS_ADD_ARGS(msg) \
     DBusMessageIter args; \
-    dbus_message_iter_init_append(db_reply_msg, &args);
+    dbus_message_iter_init_append(msg, &args);
 
 #define DBUS_ADD(type, value) \
     if (!dbus_message_iter_append_basic(&args, type, value)) \
@@ -72,8 +79,8 @@
 
 #define DBUS_INTROSPEC \
     DBUS_REPLY_INIT \
-    DBUS_ADD_ARGS \
+    DBUS_ADD_ARGS(db_reply_msg) \
     DBUS_ADD_STRING(&introspec_xml) \
-    DBUS_REPLY_SEND
+    DBUS_REPLY_SEND(db_reply_msg)
 
 #endif
