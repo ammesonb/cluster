@@ -19,6 +19,7 @@
 /*{{{ Constants */
 #define   MAX_HOSTS    100
 #define   MAX_SERVICES 50
+#define   MAX_MSG_LEN  65535
 #define   DBUSPATH     "/com/bammeson/cluster"
 #define   DBUSNAME     "com.bammeson.cluster"
 /*}}}*/
@@ -47,6 +48,7 @@ char **addresses;
 char **passphrases;
 int sockets[MAX_HOSTS];
 int status[MAX_HOSTS];
+int dynamic[MAX_HOSTS];
 int num_hosts = 0;
 char **services;
 int **service_hosts;
@@ -94,7 +96,7 @@ void load_services(char*);
 void dbus_loop(void*);
 int init_dbus();
 void register_event_base();
-void register_host_events();
+void register_host_events(int);
 void accept_connection(int, short, void *arg);
 void connect_to_host(int);
 int update_host_state(int, int);
@@ -203,10 +205,12 @@ void load_hosts(char *hosts) {/*{{{*/
         // If host is not dynamic
         if (strstr(host, ".") != NULL) {
             addresses[i] = host;
+            dynamic[i] = 0;
         } else {
             if (i == id) am_dynamic = 1;
-            char *addr = strtok(host, "___");
+            char *name = strtok(host, "___");
             char *pass = strtok(host, "___");
+            dynamic[i] = 1;
             if (strlen(pass) < MIN_PASS_LENGTH) {
                 char *err = create_str(500);
                 sprintf(err, "Passphrase on line %d must be at least %d characters!\n", i, MIN_PASS_LENGTH);
@@ -214,7 +218,7 @@ void load_hosts(char *hosts) {/*{{{*/
                 free(err);
                 quit(0);
             }
-            addresses[i] = addr;
+            addresses[i] = name;
             passphrases[i] = pass;
         }
         i++;
@@ -298,12 +302,10 @@ void register_event_base() {/*{{{*/
     event_add(keepalive, &keepalive_tv);
 
     BASE_INITED = 1;
-
-    register_host_events();
     event_base_dispatch(base);
 }/*}}}*/
 
-void register_host_events() {/*{{{*/
+void register_host_events(int host) {/*{{{*/
     // Register events for a new host
 }/*}}}*/
 
@@ -317,6 +319,88 @@ void accept_connection(int fd, short ev, void *arg) {/*{{{*/
 
 void connect_to_host(int host) {/*{{{*/
     // Attempt to connect to a given host and register events for it
+    // Host cannot be dynamic
+    if (!dynamic[host]) {
+        char *s = create_str(250);
+        sprintf(s, "Attempting to connect to host %s", addresses[host]);
+        PRINTD(3, s);
+        free(s);
+
+        // Establish connection to host/*{{{*/
+        struct addrinfo *h = (struct addrinfo*)malloc(sizeof(struct addrinfo) + 1);
+        struct addrinfo *res, *rp;
+        memset(h, '\0', sizeof(*h));
+        h->ai_family = AF_INET;
+        h->ai_socktype = SOCK_STREAM;
+        h->ai_protocol = 0;
+        char* port_str = create_str(6);
+        sprintf(port_str, "%d", port);
+
+        char *address = addresses[host];
+        int r = getaddrinfo(address, port_str, h, &res);
+        if (r) {
+            fprintf(stderr, "Failed to get info about %s: %s\n", address, gai_strerror(r));
+            return;
+        }
+
+        int newfd = -1;
+        for (rp = res; rp != NULL; rp = rp->ai_next) {
+            newfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+            if (newfd == -1) continue;
+            if (connect(newfd, rp->ai_addr, rp->ai_addrlen) != -1)
+                break;
+        }
+        if (rp == NULL) {
+            if (debug) fprintf(stderr, "DEBUG1: Failed to connect to %s\n", address);
+            return;
+        }
+        configure_socket(newfd);/*}}}*/
+
+        // Send host ID for verification purposes/*{{{*/
+        char *id_auth = create_str(10);
+        char *response = create_str(100);
+        sprintf(id_auth, "id:%d", id);
+        write(newfd, id_auth, strlen(id_auth));
+        read(newfd, response, MAX_MSG_LEN);
+        if (!strcmp(response, "400 Bad Request")) {
+            fprintf(stderr, "ID %d does not exist!\n", id);
+            return;
+        } else if (!strcmp(response, "403 Forbidden")) {
+            fprintf(stderr, "Current address does not match config file for my ID!\n");
+            return;
+        }/*}}}*/
+
+        // If I am dynamic, need to send name/pass authentication/*{{{*/
+        if (am_dynamic) {
+            char *name_str = create_str(100);
+            char *pass_str = create_str(100);
+            memset(&response, '\0', 101);
+            sprintf(name_str, "name:%s", name_str);
+            sprintf(pass_str, "pass:%s", pass_str);
+            write(newfd, name_str, strlen(name_str) + 1);
+            read(newfd, response, MAX_MSG_LEN);
+            if (!strcmp(response, "404 NOT FOUND")) {
+                fprintf(stderr, "Name rejected by %s!\n", address);
+                return;
+            }
+            memset(&response, '\0', 101);
+            write(newfd, pass_str, strlen(pass_str) + 1);
+            read(newfd, response, MAX_MSG_LEN);
+            if (!strcmp(response, "401 UNAUTHORIZED")) {
+                fprintf(stderr, "Password rejected by %s!\n", address);
+                return;
+            }
+            free(name_str);
+            free(pass_str);
+        }/*}}}*/
+        free(response);
+
+        update_host_state(host, 1);
+        sockets[host] = newfd;
+        free(port_str);
+
+        register_host_events(host);
+    }
 }/*}}}*/
 
 int update_host_state(int host, int state) {/*{{{*/
@@ -427,9 +511,8 @@ int main(int argc, char *argv[]) {/*{{{*/
         if (strcmp(addresses[i], "dyn") != 0) connect_to_host(i);
     }/*}}}*/
 
-    // Register event handlers for bind and any connected hosts/*{{{*/
+    // Register event handlers for bind and any connected hosts
     register_event_base();
-    register_host_events();/*}}}*/
 
     return 0;
 }/*}}}*/
