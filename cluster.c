@@ -90,17 +90,22 @@ char* create_str(int);
 char* read_file(char*);
 void configure_socket(int);
 void send_keepalive(int, short, void*);
-void recv_data(int);
+void recv_data(int, short, void*);
 void load_hosts(char*);
 void load_services(char*);
 void dbus_loop(void*);
 int init_dbus();
 void register_event_base();
-void register_host_events(int);
-void accept_connection(int, short, void *arg);
+void register_host_events();
+void accept_connection(int, short, void*);
 void connect_to_host(int);
+void connection_timeout(int, short, void*);
 int update_host_state(int, int);
 /*}}}*/
+
+struct timeout_args {/*{{{*/
+    int host;
+};/*}}}*/
 
 void quit(int sig) {/*{{{*/
     // Clean up
@@ -192,7 +197,7 @@ void send_keepalive(int host, short ev, void* arg) {/*{{{*/
     }
 }/*}}}*/
 
-void recv_data(int host) {/*{{{*/
+void recv_data(int fd, short ev, void *arg) {/*{{{*/
     // Read and parse data from host
 }/*}}}*/
 
@@ -303,11 +308,25 @@ void register_event_base() {/*{{{*/
     event_add(keepalive, &keepalive_tv);
 
     BASE_INITED = 1;
+
+    register_host_events();
     event_base_dispatch(base);
 }/*}}}*/
 
-void register_host_events(int host) {/*{{{*/
-    // Register events for a new host
+void register_host_events() {/*{{{*/
+    // Register events for all hosts
+    int h;
+    for (h = 0; h < num_hosts; h++) {
+        struct event *host_event = event_new(base, sockets[h], EV_READ|EV_PERSIST, recv_data, NULL);
+        struct timeout_args args;
+        args.host = h;
+        struct event *host_time_event = event_new(base, -1, EV_READ|EV_PERSIST, connection_timeout, &args);
+        struct timeval host_timeout;
+        host_timeout.tv_sec = dead;
+        host_timeout.tv_usec = 0;
+        event_add(host_event, NULL);
+        event_add(host_time_event, &host_timeout);
+    }
 }/*}}}*/
 
 void accept_connection(int fd, short ev, void *arg) {/*{{{*/
@@ -479,10 +498,13 @@ void connect_to_host(int host) {/*{{{*/
         update_host_state(host, 1);
         sockets[host] = newfd;
         free(port_str);
-
-        register_host_events(host);
     }
 }/*}}}*/
+
+void connection_timeout(int fd, short ev, void *arg) {
+    struct timeout_args *args = (struct timeout_args*)arg;
+    update_host_state(args->host, 0);
+}
 
 int update_host_state(int host, int state) {/*{{{*/
     // Update host status and dispatch necessary signals
@@ -594,6 +616,7 @@ int main(int argc, char *argv[]) {/*{{{*/
 
     // Register event handlers for bind and any connected hosts
     register_event_base();
+    register_host_events();
 
     return 0;
 }/*}}}*/
