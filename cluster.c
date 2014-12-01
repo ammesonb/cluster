@@ -26,7 +26,7 @@
 /*{{{ Global variables */
 // Config/*{{{*/
 char* str_id = NULL;
-int id = -1, am_dynamic = 0;
+int id = -1, max_id = -1, am_dynamic = 0;
 cfg_t *cfg;
 cfg_bool_t alert = cfg_false;
 int port, debug, interval, dead;
@@ -202,6 +202,7 @@ void load_hosts(char *hosts) {/*{{{*/
     char *host = strtok(hosts, "\n");
     int i = 0;
     while (host != NULL) {
+        max_id++;
         // If host is not dynamic
         if (strstr(host, ".") != NULL) {
             addresses[i] = host;
@@ -315,6 +316,86 @@ void accept_connection(int fd, short ev, void *arg) {/*{{{*/
        IP being connected from matches hosts
        address/DNS name
     */
+    struct sockaddr client_addr;
+    memset(&client_addr, '\0', sizeof(client_addr));
+    socklen_t addr_size = sizeof(client_addr);
+    int newfd = accept(accept_fd, &client_addr, &addr_size);
+    if (newfd < 0) {
+        fprintf(stderr, "Failed to establish connection: %s\n", strerror(errno));
+        return;
+    }
+
+    // Set up socket and get IP address/DNS name/*{{{*/
+    configure_socket(newfd);
+    char *client_host = create_str(500);
+    char *client_num_host = create_str(500);
+    char *client_serv = create_str(500);
+    getnameinfo(&client_addr, sizeof(client_addr), client_host, 500, client_serv, 500, 0);
+    getnameinfo(&client_addr, sizeof(client_addr), client_num_host, 500, client_serv, 500, NI_NUMERICHOST);/*}}}*/
+
+    // Authenticate host/*{{{*/
+    char *buffer = create_str(MAX_MSG_LEN);
+    memset(buffer, '\0', MAX_MSG_LEN + 1);
+    read(newfd, buffer, MAX_MSG_LEN);
+    int client_id;
+    // Check ID is within reasonable bounds/*{{{*/
+    if (!strstr(buffer, "id:")) {
+        buffer += 3;
+        client_id = atoi(buffer);
+        buffer -= 3;
+        memset(buffer, '\0', 501);
+        if (client_id > max_id) {
+            char *r = "400 BAD REQUEST";
+            write(newfd, r, strlen(r));
+        } else {
+            char *r = "200 CONTINUE";
+            write(newfd, r, strlen(r));
+        }/*}}}*/
+
+        // Check ID matches connection address/*{{{*/
+        if (!dynamic[client_id] && strcmp(client_host, addresses[client_id]) &&
+                    strcmp(client_num_host, addresses[client_id])) {
+                char *r = "403 FORBIDDEN";
+                write(newfd, r, strlen(r));
+                fprintf(stderr, "IP address host connected from (%s or %s) does not match config file\n",
+                        client_host, client_num_host);
+                return;/*}}}*/
+        } else {
+            // Check client sends matching name to ID/*{{{*/
+            char *r = "200 CONTINUE";
+            write(newfd, r, strlen(r));
+            memset(buffer, '\0', 501);
+            read(newfd, buffer, MAX_MSG_LEN);
+            char *client_name = create_str(500);
+            strcpy(client_name, buffer);
+            if (strcmp(buffer, addresses[client_id])) {
+                r = "404 NOT FOUND";
+                write(newfd, r, strlen(r));
+                fprintf(stderr, "Name %s does not exist\n", buffer);
+                return;
+            } else {
+                write(newfd, r, strlen(r));
+            }/*}}}*/
+
+            // Verify password against name/*{{{*/
+            memset(buffer, '\0', 501);
+            read(newfd, buffer, 500);
+            if (strcmp(buffer, passphrases[client_id])) {
+                r = "401 UNAUTHORIZED";
+                write(newfd, r, strlen(r));
+                fprintf(stderr, "Host %s sent invalid passphrase\n", client_name);
+                return;
+            } else {
+                write(newfd, r, strlen(r));
+            }/*}}}*/
+
+            free(client_name);
+            free(buffer);
+            free(client_serv);
+            free(client_num_host);
+            free(client_host);
+        }
+    }/*}}}*/
 }/*}}}*/
 
 void connect_to_host(int host) {/*{{{*/
@@ -362,10 +443,10 @@ void connect_to_host(int host) {/*{{{*/
         sprintf(id_auth, "id:%d", id);
         write(newfd, id_auth, strlen(id_auth));
         read(newfd, response, MAX_MSG_LEN);
-        if (!strcmp(response, "400 Bad Request")) {
+        if (!strcmp(response, "400 BAD REQUEST")) {
             fprintf(stderr, "ID %d does not exist!\n", id);
             return;
-        } else if (!strcmp(response, "403 Forbidden")) {
+        } else if (!strcmp(response, "403 FORBIDDEN")) {
             fprintf(stderr, "Current address does not match config file for my ID!\n");
             return;
         }/*}}}*/
