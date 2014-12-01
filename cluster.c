@@ -47,6 +47,7 @@ int accept_fd;
 char **addresses;
 char **passphrases;
 int sockets[MAX_HOSTS];
+long long last_msg[MAX_HOSTS];
 int status[MAX_HOSTS];
 int dynamic[MAX_HOSTS];
 int num_hosts = 0;
@@ -199,6 +200,12 @@ void send_keepalive(int host, short ev, void* arg) {/*{{{*/
 
 void recv_data(int fd, short ev, void *arg) {/*{{{*/
     // Read and parse data from host
+    struct timeout_args *args = (struct timeout_args*)arg;
+    struct timeval cur_time;
+    gettimeofday(&cur_time, NULL);
+    long long cur = cur_time.tv_sec * 1000;
+    cur += cur_time.tv_usec;
+    last_msg[args->host] = cur;
 }/*}}}*/
 
 void load_hosts(char *hosts) {/*{{{*/
@@ -317,9 +324,9 @@ void register_host_events() {/*{{{*/
     // Register events for all hosts
     int h;
     for (h = 0; h < num_hosts; h++) {
-        struct event *host_event = event_new(base, sockets[h], EV_READ|EV_PERSIST, recv_data, NULL);
         struct timeout_args args;
         args.host = h;
+        struct event *host_event = event_new(base, sockets[h], EV_READ|EV_PERSIST, recv_data, &args);
         struct event *host_time_event = event_new(base, -1, EV_READ|EV_PERSIST, connection_timeout, &args);
         struct timeval host_timeout;
         host_timeout.tv_sec = dead;
@@ -356,7 +363,7 @@ void accept_connection(int fd, short ev, void *arg) {/*{{{*/
     char *buffer = create_str(MAX_MSG_LEN);
     memset(buffer, '\0', MAX_MSG_LEN + 1);
     read(newfd, buffer, MAX_MSG_LEN);
-    int client_id;
+    int client_id = -1;
     // Check ID is within reasonable bounds/*{{{*/
     if (!strstr(buffer, "id:")) {
         buffer += 3;
@@ -366,6 +373,8 @@ void accept_connection(int fd, short ev, void *arg) {/*{{{*/
         if (client_id > max_id) {
             char *r = "400 BAD REQUEST";
             write(newfd, r, strlen(r));
+            fprintf(stderr, "ID sent (%d) was higher than allowed range!\n", client_id);
+            return;
         } else {
             char *r = "200 CONTINUE";
             write(newfd, r, strlen(r));
@@ -415,6 +424,8 @@ void accept_connection(int fd, short ev, void *arg) {/*{{{*/
             free(client_host);
         }
     }/*}}}*/
+
+    update_host_state(client_id, 1);
 }/*}}}*/
 
 void connect_to_host(int host) {/*{{{*/
@@ -501,10 +512,10 @@ void connect_to_host(int host) {/*{{{*/
     }
 }/*}}}*/
 
-void connection_timeout(int fd, short ev, void *arg) {
+void connection_timeout(int fd, short ev, void *arg) {/*{{{*/
     struct timeout_args *args = (struct timeout_args*)arg;
     update_host_state(args->host, 0);
-}
+}/*}}}*/
 
 int update_host_state(int host, int state) {/*{{{*/
     // Update host status and dispatch necessary signals
@@ -515,6 +526,10 @@ int update_host_state(int host, int state) {/*{{{*/
     DBUS_ADD_ARGS(db_call_msg)
     DBUS_ADD_INT32(&state);
     DBUS_REPLY_SEND(db_call_msg);
+    if (!state) {
+        last_msg[host] = 0;
+        sockets[host] = -1;
+    }
     return 0;
 }/*}}}*/
 
