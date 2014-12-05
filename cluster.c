@@ -1,4 +1,5 @@
-/*{{{ Includes */ #include <stdio.h>
+/*{{{ Includes */
+#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -47,7 +48,7 @@ int accept_fd;
 char **addresses;
 char **passphrases;
 int sockets[MAX_HOSTS];
-long long last_msg[MAX_HOSTS];
+unsigned long long last_msg[MAX_HOSTS];
 int status[MAX_HOSTS];
 int dynamic[MAX_HOSTS];
 int num_hosts = 0;
@@ -131,6 +132,14 @@ char* create_str(int length) {/*{{{*/
     return s;
 }/*}}}*/
 
+unsigned long long get_cur_time() {/*{{{*/
+    struct timeval cur_time;
+    gettimeofday(&cur_time, NULL);
+    unsigned long long cur = cur_time.tv_sec * 1000;
+    cur += cur_time.tv_usec;
+    return cur;
+}/*}}}*/
+
 char* read_file(char *name) {/*{{{*/
     struct stat *s = NULL;
     s = (struct stat*)malloc(sizeof(struct stat));
@@ -201,11 +210,7 @@ void send_keepalive(int host, short ev, void* arg) {/*{{{*/
 void recv_data(int fd, short ev, void *arg) {/*{{{*/
     // Read and parse data from host
     struct timeout_args *args = (struct timeout_args*)arg;
-    struct timeval cur_time;
-    gettimeofday(&cur_time, NULL);
-    long long cur = cur_time.tv_sec * 1000;
-    cur += cur_time.tv_usec;
-    last_msg[args->host] = cur;
+    last_msg[args->host] = get_cur_time();
 }/*}}}*/
 
 void load_hosts(char *hosts) {/*{{{*/
@@ -514,7 +519,13 @@ void connect_to_host(int host) {/*{{{*/
 
 void connection_timeout(int fd, short ev, void *arg) {/*{{{*/
     struct timeout_args *args = (struct timeout_args*)arg;
-    update_host_state(args->host, 0);
+    if (last_msg[args->host] + (dead * 1000) < get_cur_time()) {
+        char *s = create_str(150);
+        sprintf(s, "Host %d has not responded in %llu ms", args->host, get_cur_time() - last_msg[args->host]);
+        PRINTD(2, s);
+        free(s);
+        update_host_state(args->host, 0);
+    }
 }/*}}}*/
 
 int update_host_state(int host, int state) {/*{{{*/
