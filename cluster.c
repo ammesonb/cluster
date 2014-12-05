@@ -84,7 +84,7 @@ char *introspec_xml =
 /*}}}*/
 /*{{{ Macros */
 #define   DIE(str) fprintf(stderr, "%s\n", str); exit(1);
-#define   PRINTD(level, str) if (debug >= level) printf("DEBUG%d: %s\n", level, str);
+#define   PRINTD(level, d_str, args...) if (debug >= level) printf("DEBUG%d: ", level); printf(d_str, ##args); printf("\n");
 /*}}}*/
 /*{{{ Function templates*/
 void quit(int);
@@ -110,6 +110,7 @@ struct timeout_args {/*{{{*/
 };/*}}}*/
 
 void quit(int sig) {/*{{{*/
+    PRINTD(1, "Received exit signal! Cleaning up.");
     // Clean up
     free(str_id);
     free(ping_msg);
@@ -141,6 +142,7 @@ unsigned long long get_cur_time() {/*{{{*/
 }/*}}}*/
 
 char* read_file(char *name) {/*{{{*/
+    PRINTD(3, "Attempting to read file %s", name);
     struct stat *s = NULL;
     s = (struct stat*)malloc(sizeof(struct stat));
     stat(name, s);
@@ -188,7 +190,6 @@ void configure_socket(int sockfd) {/*{{{*/
         fprintf(stderr, "Failed to set option");
         exit(1);
     }
-
 }/*}}}*/
 
 void send_keepalive(int host, short ev, void* arg) {/*{{{*/
@@ -202,6 +203,7 @@ void send_keepalive(int host, short ev, void* arg) {/*{{{*/
         if (out < 1) {
             if (errno == EAGAIN || errno == EWOULDBLOCK ||
                 errno == EINTR) {continue;}
+            PRINTD(1, "Keepalive packet to host %s (%d) failed!", addresses[i], i);
             update_host_state(i, 0);
         }
     }
@@ -210,6 +212,7 @@ void send_keepalive(int host, short ev, void* arg) {/*{{{*/
 void recv_data(int fd, short ev, void *arg) {/*{{{*/
     // Read and parse data from host
     struct timeout_args *args = (struct timeout_args*)arg;
+    PRINTD(2, "Receiving data from host %s (%d)", addresses[args->host], args->host);
     last_msg[args->host] = get_cur_time();
 }/*}}}*/
 
@@ -219,6 +222,7 @@ void load_hosts(char *hosts) {/*{{{*/
     char *host = strtok(hosts, "\n");
     int i = 0;
     while (host != NULL) {
+        PRINTD(3, "Loading host %d", i);
         max_id++;
         // If host is not dynamic
         if (strstr(host, ".") != NULL) {
@@ -230,10 +234,7 @@ void load_hosts(char *hosts) {/*{{{*/
             char *pass = strtok(host, "___");
             dynamic[i] = 1;
             if (strlen(pass) < MIN_PASS_LENGTH) {
-                char *err = create_str(500);
-                sprintf(err, "Passphrase on line %d must be at least %d characters!\n", i, MIN_PASS_LENGTH);
-                fprintf(stderr, "%s", err);
-                free(err);
+                fprintf(stderr, "Passphrase on line %d must be at least %d characters!\n", i, MIN_PASS_LENGTH);
                 quit(0);
             }
             addresses[i] = name;
@@ -251,12 +252,14 @@ void load_services(char *service_data) {/*{{{*/
     char *service = strtok(service_data, "\n");
     int i = 0;
     while (service != NULL) {
+        PRINTD(3, "Loading service %d", i);
         char *service_name = strtok(service, " ");
         services[i] = service_name;
 
         int j = 0;
         char *service_host = strtok(NULL, " ");
         while (service_host != NULL) {
+            PRINTD(3, "Storing service host %d", j);
             int h = atoi(service_host);
             if (j == 0) {
                 service_hosts[i] = (int*)malloc(sizeof(int) * num_hosts);
@@ -273,16 +276,14 @@ void load_services(char *service_data) {/*{{{*/
 DBUS_FUNC(dbus_handler) {/*{{{*/
     int handled = 0;
     const char *iface = dbus_message_get_interface(dbmsg);
+    PRINTD(3, "Received DBus message on %s", iface);
     if (!strcmp(iface, DBUS_INTERFACE_INTROSPECTABLE)) {
         DBUS_INTROSPEC
         handled = 1;
     } else if (!strcmp(iface, DBUS_NAME)) {
         if (dbus_message_is_method_call(dbmsg, DBUS_NAME, "updateHandlerPID")) {
             DBUS_GET_ARGS(DBUS_TYPE_INT32, &handler_pid);
-            char *s = create_str(100);
-            sprintf(s, "Handler pid set to %d", handler_pid);
-            PRINTD(3, s);
-            free(s);
+            PRINTD(3, "Handler pid set to %d", handler_pid);
             int ret = 1;
             DBUS_REPLY_INIT
             DBUS_ADD_ARGS(db_reply_msg)
@@ -296,16 +297,20 @@ DBUS_FUNC(dbus_handler) {/*{{{*/
 }/*}}}*/
 
 void dbus_loop(void* args) {/*{{{*/
+    PRINTD(1, "Entering main DBus loop");
     while (dbus_connection_read_write_dispatch(conn, -1));
 }/*}}}*/
 
 int init_dbus() {/*{{{*/
+    PRINTD(2, "Initializing DBus");
     DBUS_INIT(DBUS_NAME, DBUS_PATH, dbus_handler)
+    PRINTD(2, "Dispatching DBus thread");
     pthread_create(&dbus_dispatcher, NULL, (void*)dbus_loop, NULL);
     return EXIT_SUCCESS;
 }/*}}}*/
 
 void register_event_base() {/*{{{*/
+    PRINTD(2, "Registering base events");
     // Register all events
     if (BASE_INITED) event_base_loopexit(base, NULL);
     base = event_base_new();
@@ -322,10 +327,12 @@ void register_event_base() {/*{{{*/
     BASE_INITED = 1;
 
     register_host_events();
+    PRINTD(1, "Entering events loop");
     event_base_dispatch(base);
 }/*}}}*/
 
 void register_host_events() {/*{{{*/
+    PRINTD(2, "Registering host events");
     // Register events for all hosts
     int h;
     for (h = 0; h < num_hosts; h++) {
@@ -347,6 +354,7 @@ void accept_connection(int fd, short ev, void *arg) {/*{{{*/
        IP being connected from matches hosts
        address/DNS name
     */
+    PRINTD(2, "Received connection request");
     struct sockaddr client_addr;
     memset(&client_addr, '\0', sizeof(client_addr));
     socklen_t addr_size = sizeof(client_addr);
@@ -357,14 +365,17 @@ void accept_connection(int fd, short ev, void *arg) {/*{{{*/
     }
 
     // Set up socket and get IP address/DNS name/*{{{*/
+    PRINTD(3, "Looking up DNS name");
     configure_socket(newfd);
     char *client_host = create_str(500);
     char *client_num_host = create_str(500);
     char *client_serv = create_str(500);
     getnameinfo(&client_addr, sizeof(client_addr), client_host, 500, client_serv, 500, 0);
-    getnameinfo(&client_addr, sizeof(client_addr), client_num_host, 500, client_serv, 500, NI_NUMERICHOST);/*}}}*/
+    getnameinfo(&client_addr, sizeof(client_addr), client_num_host, 500, client_serv, 500, NI_NUMERICHOST);
+    PRINTD(3, "Connection from %s (%s)", client_host, client_num_host);/*}}}*/
 
     // Authenticate host/*{{{*/
+    PRINTD(3, "Verifying ID")
     char *buffer = create_str(MAX_MSG_LEN);
     memset(buffer, '\0', MAX_MSG_LEN + 1);
     read(newfd, buffer, MAX_MSG_LEN);
@@ -386,6 +397,7 @@ void accept_connection(int fd, short ev, void *arg) {/*{{{*/
         }/*}}}*/
 
         // Check ID matches connection address/*{{{*/
+        PRINTD(3, "Verifying connected address matches ID");
         if (!dynamic[client_id] && strcmp(client_host, addresses[client_id]) &&
                     strcmp(client_num_host, addresses[client_id])) {
                 char *r = "403 FORBIDDEN";
@@ -395,6 +407,7 @@ void accept_connection(int fd, short ev, void *arg) {/*{{{*/
                 return;/*}}}*/
         } else {
             // Check client sends matching name to ID/*{{{*/
+            PRINTD(3, "Checking name and passphrase");
             char *r = "200 CONTINUE";
             write(newfd, r, strlen(r));
             memset(buffer, '\0', 501);
@@ -430,6 +443,7 @@ void accept_connection(int fd, short ev, void *arg) {/*{{{*/
         }
     }/*}}}*/
 
+    PRINTD(2, "Host %s is online", addresses[client_id]);
     update_host_state(client_id, 1);
 }/*}}}*/
 
@@ -437,10 +451,7 @@ void connect_to_host(int host) {/*{{{*/
     // Attempt to connect to a given host and register events for it
     // Host cannot be dynamic
     if (!dynamic[host]) {
-        char *s = create_str(250);
-        sprintf(s, "Attempting to connect to host %s", addresses[host]);
-        PRINTD(3, s);
-        free(s);
+        PRINTD(3, "Running connection function for host %s", addresses[host]);
 
         // Establish connection to host/*{{{*/
         struct addrinfo *h = (struct addrinfo*)malloc(sizeof(struct addrinfo) + 1);
@@ -461,6 +472,7 @@ void connect_to_host(int host) {/*{{{*/
 
         int newfd = -1;
         for (rp = res; rp != NULL; rp = rp->ai_next) {
+            PRINTD(3, "Trying next address");
             newfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
             if (newfd == -1) continue;
             if (connect(newfd, rp->ai_addr, rp->ai_addrlen) != -1)
@@ -473,6 +485,7 @@ void connect_to_host(int host) {/*{{{*/
         configure_socket(newfd);/*}}}*/
 
         // Send host ID for verification purposes/*{{{*/
+        PRINTD(3, "Sending ID");
         char *id_auth = create_str(10);
         char *response = create_str(100);
         sprintf(id_auth, "id:%d", id);
@@ -488,6 +501,7 @@ void connect_to_host(int host) {/*{{{*/
 
         // If I am dynamic, need to send name/pass authentication/*{{{*/
         if (am_dynamic) {
+            PRINTD(3, "Sending name and password auth");
             char *name_str = create_str(100);
             char *pass_str = create_str(100);
             memset(&response, '\0', 101);
@@ -511,6 +525,7 @@ void connect_to_host(int host) {/*{{{*/
         }/*}}}*/
         free(response);
 
+        PRINTD(2, "Host %s is online", addresses[host]);
         update_host_state(host, 1);
         sockets[host] = newfd;
         free(port_str);
@@ -520,10 +535,7 @@ void connect_to_host(int host) {/*{{{*/
 void connection_timeout(int fd, short ev, void *arg) {/*{{{*/
     struct timeout_args *args = (struct timeout_args*)arg;
     if (last_msg[args->host] + (dead * 1000) < get_cur_time()) {
-        char *s = create_str(150);
-        sprintf(s, "Host %d has not responded in %llu ms", args->host, get_cur_time() - last_msg[args->host]);
-        PRINTD(2, s);
-        free(s);
+        PRINTD(2, "Host %d has not responded in %llu ms", args->host, get_cur_time() - last_msg[args->host]);
         update_host_state(args->host, 0);
     }
 }/*}}}*/
@@ -533,6 +545,7 @@ int update_host_state(int host, int state) {/*{{{*/
     if (status[host] == state) return 0;
     status[host] = state;
     char *func = state ? "hostOnline" : "hostOffline";
+    PRINTD(3, "Dispatching DBus call for host %d with state %d", host, state);
     DBUS_INIT_METHOD_CALL(DBUS_HANDLER_NAME, DBUS_HANDLER_PATH, DBUS_HANDLER_NAME, func);
     DBUS_ADD_ARGS(db_call_msg)
     DBUS_ADD_INT32(&state);
@@ -545,6 +558,7 @@ int update_host_state(int host, int state) {/*{{{*/
 }/*}}}*/
 
 int main(int argc, char *argv[]) {/*{{{*/
+    PRINTD(1, "Loading cluster configuration");
     if (access("cluster.conf", R_OK)) {
         DIE("Couldn't read cluster configuration file");
     } else if (access("hosts", R_OK)) {
@@ -571,8 +585,9 @@ int main(int argc, char *argv[]) {/*{{{*/
     ping_msg = create_str(9);
     sprintf(ping_msg, "%d-ping", id);/*}}}*/
 
-    // Load secondary config files (hosts, services, etc)
-    PRINTD(3, "Loading hosts")/*{{{*/
+    // Load secondary config files (hosts, services, etc)/*{{{*/
+    PRINTD(2, "Loading secondary configuration files");
+    PRINTD(3, "Loading hosts")
     char *hosts = read_file("hosts");
     load_hosts(hosts);
 
@@ -581,6 +596,7 @@ int main(int argc, char *argv[]) {/*{{{*/
     load_services(service_data);/*}}}*/
 
     // Register signals/*{{{*/
+    PRINTD(2, "Registering signal handlers");
     if (signal(SIGINT, quit) == SIG_ERR) {
         fprintf(stderr, "Can't catch SIGINT");
         quit(0);
@@ -595,7 +611,7 @@ int main(int argc, char *argv[]) {/*{{{*/
     }/*}}}*/
 
     // Register DBus handlers/*{{{*/
-    PRINTD(3, "Registering DBus functions");
+    PRINTD(2, "Registering DBus functions");
     int failed = init_dbus();
     if (failed) {
         DIE("Couldn't establish DBus connection");
@@ -603,6 +619,7 @@ int main(int argc, char *argv[]) {/*{{{*/
 /*}}}*/
 
     // Launch python script to handle extraneous requests such as file transfers/*{{{*/
+    PRINTD(2, "Forking python DBus handler");
     int is_parent = fork();
     if (!is_parent) {
         char *args[] = {};
@@ -617,11 +634,12 @@ int main(int argc, char *argv[]) {/*{{{*/
     }/*}}}*/
 
     // Bind socket and listen/*{{{*/
-    PRINTD(3, "Creating server socket");
+    PRINTD(2, "Creating listening socket");
     accept_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (accept_fd < 0) {
         DIE("Failed to create bound socket");
     }
+    PRINTD(3, "Configuring listening ocket");
     configure_socket(accept_fd);
     struct sockaddr_in addr_in;
     memset(&addr_in, '\0', sizeof(addr_in));
@@ -629,6 +647,7 @@ int main(int argc, char *argv[]) {/*{{{*/
     addr_in.sin_addr.s_addr = INADDR_ANY;
     addr_in.sin_port = htons(port);
 
+    PRINTD(3, "Binding listening socket");
     int out = bind(accept_fd, (struct sockaddr*)&addr_in, sizeof(addr_in));
     if (out < 0) {
         DIE("Failed to bind socket");
@@ -641,15 +660,19 @@ int main(int argc, char *argv[]) {/*{{{*/
 
     // Attempt to connect to all other hosts/*{{{*/
     int i;
+    PRINTD(1, "Attempting to establish connection with other hosts");
     for (i = 0; i < num_hosts; i++) {
         if (i == id) continue;
-        printf("Attempting to connect to host %d at %s\n", i, addresses[i]);
+        PRINTD(2, "Attempting to connect to host %d at %s", i, addresses[i]);
         if (strcmp(addresses[i], "dyn") != 0) connect_to_host(i);
     }/*}}}*/
 
     // Register event handlers for bind and any connected hosts
+    PRINTD(2, "Registering events");
     register_event_base();
-    register_host_events();
+    PRINTD(1, "Main events loop broken! Exiting.");
+
+    quit(0);
 
     return 0;
 }/*}}}*/
