@@ -545,6 +545,13 @@ int update_host_state(int host, int state) {/*{{{*/
 }/*}}}*/
 
 int main(int argc, char *argv[]) {/*{{{*/
+    if (access("cluster.conf", R_OK)) {
+        DIE("Couldn't read cluster configuration file");
+    } else if (access("hosts", R_OK)) {
+        DIE("Couldn't read hosts configuration file");
+    } else if (access("services", R_OK)) {
+        DIE("Couldn't read services configuration file");
+    }
     // Load configuration/*{{{*/
     cfg_opt_t config[] = {
         CFG_SIMPLE_INT("port", &port),
@@ -564,8 +571,8 @@ int main(int argc, char *argv[]) {/*{{{*/
     ping_msg = create_str(9);
     sprintf(ping_msg, "%d-ping", id);/*}}}*/
 
-    PRINTD(3, "Loading hosts")/*{{{*/
     // Load secondary config files (hosts, services, etc)
+    PRINTD(3, "Loading hosts")/*{{{*/
     char *hosts = read_file("hosts");
     load_hosts(hosts);
 
