@@ -4,7 +4,7 @@
 
 #define DBUS_CHECK_ERR(str, err) \
     if (dbus_error_is_set(&err)) { \
-        fprintf(stderr, "str: %s\n", err.message); \
+        fprintf(stderr, "%s%s\n", str, err.message); \
         dbus_error_free(&err); \
         return EXIT_FAILURE; \
     }
