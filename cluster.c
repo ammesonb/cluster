@@ -336,6 +336,7 @@ void register_host_events() {/*{{{*/
     // Register events for all hosts
     int h;
     for (h = 0; h < num_hosts; h++) {
+        if (h == id) {continue;}
         struct timeout_args args;
         args.host = h;
         struct event *host_event = event_new(base, sockets[h], EV_READ|EV_PERSIST, recv_data, &args);
