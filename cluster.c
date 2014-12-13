@@ -50,13 +50,17 @@ char **passphrases;
 int sockets[MAX_HOSTS];
 unsigned long long last_msg[MAX_HOSTS];
 int status[MAX_HOSTS];
+int host_error[MAX_HOSTS];
 int dynamic[MAX_HOSTS];
 int num_hosts = 0;
 char **services;
 int **service_hosts;
 int num_services = 0;
 char *ping_msg;
-char *my_pass;/*}}}*/
+char *my_pass;
+int cur_host = -1;
+int char_count = -1;
+/*}}}*/
 
 // Events/*{{{*/
 struct event_base  *base;
@@ -192,19 +196,18 @@ void configure_socket(int sockfd) {/*{{{*/
     }
 }/*}}}*/
 
-void send_keepalive(int host, short ev, void* arg) {/*{{{*/
+void send_keepalive(int fd, short ev, void* arg) {/*{{{*/
     // Send a keepalive packet to a given host
-    int i;
     int length = strlen(ping_msg);
     PRINTD(3, "Sending keepalive to live clients");
-    for (i = 0; i < num_hosts; i++) {
-        if (!status[i]) {continue;}
-        int out = write(sockets[i], ping_msg, length);
-        if (out < 1) {
+    for (cur_host = 0; cur_host < num_hosts; cur_host++) {
+        if (!status[cur_host]) {continue;}
+        int char_count = write(sockets[cur_host], ping_msg, length);
+        if (char_count < 1) {
             if (errno == EAGAIN || errno == EWOULDBLOCK ||
                 errno == EINTR) {continue;}
-            PRINTD(1, "Keepalive packet to host %s (%d) failed!", addresses[i], i);
-            update_host_state(i, 0);
+            PRINTD(1, "Keepalive packet to host %s (%d) failed!", addresses[cur_host], cur_host);
+            update_host_state(cur_host, 0);
         }
     }
 }/*}}}*/
@@ -221,6 +224,12 @@ void recv_data(int fd, short ev, void *arg) {/*{{{*/
         last_msg[host] = get_cur_time();
     }
     free(buf);
+}/*}}}*/
+
+void write_err(int sig) {/*{{{*/
+    if (cur_host < 0) return;
+    host_error[cur_host] = 1;
+    update_host_state(cur_host, 0);
 }/*}}}*/
 
 void load_hosts(char *hosts) {/*{{{*/
@@ -395,12 +404,17 @@ void accept_connection(int fd, short ev, void *arg) {/*{{{*/
         memset(buffer, '\0', 501);
         if (client_id > max_id) {
             char *r = "400 BAD REQUEST";
-            write(newfd, r, strlen(r));
+            cur_host = -1;
+            host_error[client_id] = 0;
+            char_count = write(newfd, r, strlen(r));
+            if (host_error[client_id]) {PRINTD(1, "Connection with host %s (%d) broken!", addresses[client_id], client_id); return;}
             fprintf(stderr, "ID sent (%d) was higher than allowed range!\n", client_id);
             return;
         } else {
             char *r = "200 CONTINUE";
-            write(newfd, r, strlen(r));
+            cur_host = client_id;
+            char_count = write(newfd, r, strlen(r));
+            if (host_error[client_id]) {PRINTD(1, "Connection with host %s (%d) broken!", addresses[client_id], client_id); return;}
         }/*}}}*/
 
         // Check ID matches connection address/*{{{*/
@@ -408,7 +422,9 @@ void accept_connection(int fd, short ev, void *arg) {/*{{{*/
         if (!dynamic[client_id] && strcmp(client_host, addresses[client_id]) &&
                     strcmp(client_num_host, addresses[client_id])) {
                 char *r = "403 FORBIDDEN";
-                write(newfd, r, strlen(r));
+                cur_host = client_id;
+                char_count = write(newfd, r, strlen(r));
+                if (host_error[client_id]) {PRINTD(1, "Connection with host %s (%d) broken!", addresses[client_id], client_id); return;}
                 fprintf(stderr, "IP address host connected from (%s or %s) does not match config file\n",
                         client_host, client_num_host);
                 return;/*}}}*/
@@ -416,18 +432,24 @@ void accept_connection(int fd, short ev, void *arg) {/*{{{*/
             // Check client sends matching name to ID/*{{{*/
             PRINTD(3, "Checking name and passphrase");
             char *r = "200 CONTINUE";
-            write(newfd, r, strlen(r));
+            cur_host = client_id;
+            char_count = write(newfd, r, strlen(r));
+            if (host_error[client_id]) {PRINTD(1, "Connection with host %s (%d) broken!", addresses[client_id], client_id); return;}
             memset(buffer, '\0', 501);
             read(newfd, buffer, MAX_MSG_LEN);
             char *client_name = create_str(500);
             strcpy(client_name, buffer);
             if (strcmp(buffer, addresses[client_id])) {
                 r = "404 NOT FOUND";
-                write(newfd, r, strlen(r));
+                cur_host = client_id;
+                char_count = write(newfd, r, strlen(r));
+                if (host_error[client_id]) {PRINTD(1, "Connection with host %s (%d) broken!", addresses[client_id], client_id); return;}
                 fprintf(stderr, "Name %s does not exist\n", buffer);
                 return;
             } else {
-                write(newfd, r, strlen(r));
+                cur_host = client_id;
+                char_count = write(newfd, r, strlen(r));
+                if (host_error[client_id]) {PRINTD(1, "Connection with host %s (%d) broken!", addresses[client_id], client_id); return;}
             }/*}}}*/
 
             // Verify password against name/*{{{*/
@@ -435,11 +457,14 @@ void accept_connection(int fd, short ev, void *arg) {/*{{{*/
             read(newfd, buffer, 500);
             if (strcmp(buffer, passphrases[client_id])) {
                 r = "401 UNAUTHORIZED";
-                write(newfd, r, strlen(r));
+                cur_host = client_id;
+                char_count = write(newfd, r, strlen(r));
+                if (host_error[client_id]) {PRINTD(1, "Connection with host %s (%d) broken!", addresses[client_id], client_id); return;}
                 fprintf(stderr, "Host %s sent invalid passphrase\n", client_name);
                 return;
             } else {
-                write(newfd, r, strlen(r));
+                char_count = write(newfd, r, strlen(r));
+                if (host_error[client_id]) {PRINTD(1, "Connection with host %s (%d) broken!", addresses[client_id], client_id); return;}
             }/*}}}*/
 
             free(client_name);
@@ -496,7 +521,9 @@ void connect_to_host(int host) {/*{{{*/
         char *id_auth = create_str(10);
         char *response = create_str(100);
         sprintf(id_auth, "id:%d", id);
-        write(newfd, id_auth, strlen(id_auth));
+        cur_host = host;
+        char_count = write(newfd, id_auth, strlen(id_auth));
+        if (host_error[host]) {PRINTD(1, "Connection with host %s (%d) broken!", addresses[host], host); return;}
         read(newfd, response, MAX_MSG_LEN);
         if (!strcmp(response, "400 BAD REQUEST")) {
             fprintf(stderr, "ID %d does not exist!\n", id);
@@ -514,14 +541,18 @@ void connect_to_host(int host) {/*{{{*/
             memset(&response, '\0', 101);
             sprintf(name_str, "name:%s", name_str);
             sprintf(pass_str, "pass:%s", pass_str);
-            write(newfd, name_str, strlen(name_str) + 1);
+            cur_host = host;
+            char_count = write(newfd, name_str, strlen(name_str) + 1);
+            if (host_error[host]) {PRINTD(1, "Connection with host %s (%d) broken!", addresses[host], host); return;}
             read(newfd, response, MAX_MSG_LEN);
             if (!strcmp(response, "404 NOT FOUND")) {
                 fprintf(stderr, "Name rejected by %s!\n", address);
                 return;
             }
             memset(&response, '\0', 101);
-            write(newfd, pass_str, strlen(pass_str) + 1);
+            cur_host = host;
+            char_count = write(newfd, pass_str, strlen(pass_str) + 1);
+            if (host_error[host]) {PRINTD(1, "Connection with host %s (%d) broken!", addresses[host], host); return;}
             read(newfd, response, MAX_MSG_LEN);
             if (!strcmp(response, "401 UNAUTHORIZED")) {
                 fprintf(stderr, "Password rejected by %s!\n", address);
@@ -614,6 +645,10 @@ int main(int argc, char *argv[]) {/*{{{*/
     }
     if (signal(SIGTERM, quit) == SIG_ERR) {
         fprintf(stderr, "Can't catch SIGTERM");
+        quit(0);
+    }
+    if (signal(SIGPIPE, write_err) == SIG_ERR) {
+        fprintf(stderr, "Can't catch SIGPIPE");
         quit(0);
     }/*}}}*/
 
