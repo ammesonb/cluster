@@ -18,10 +18,12 @@ class ClusterService(dbus.service.Object):
     @dbus.service.method(dbusName)
     def hostOffline(self, host):
         print host + ' is offline'
+        return 0
 
     @dbus.service.method(dbusName)
     def hostOnline(self, host):
         print host + ' is online'
+        return 0
 
 DBusGMainLoop(set_as_default=True)
 bus = dbus.SessionBus()

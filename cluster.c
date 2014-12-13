@@ -37,8 +37,8 @@ int MIN_PASS_LENGTH = 8;/*}}}*/
 // DBus/*{{{*/
 char *DBUS_PATH = "/com/bammeson/cluster";
 char *DBUS_NAME = "com.bammeson.cluster";
-char *DBUS_HANDLER_PATH = "/com/bammeson/clusterHandler";
-char *DBUS_HANDLER_NAME = "com.bammeson.clusterHandler";
+char *DBUS_HANDLER_PATH = "/com/bammeson/clusterhandler";
+char *DBUS_HANDLER_NAME = "com.bammeson.clusterhandler";
 DBusConnection *conn;
 int handler_pid = -1;
 pthread_t dbus_dispatcher;/*}}}*/
@@ -222,6 +222,11 @@ void recv_data(int fd, short ev, void *arg) {/*{{{*/
     if (count) {
         PRINTD(3, "Received %s from host %s (%d)", buf, addresses[host], host);
         last_msg[host] = get_cur_time();
+    } else {
+        PRINTD(3, "Data received had no length! Testing for closed connection....");
+        cur_host = host;
+        char_count = write(sockets[host], "ping", 4);
+        if (host_error[host]) {PRINTD(1, "Connection broken with host %d", host); free(buf); return;}
     }
     free(buf);
 }/*}}}*/
@@ -229,6 +234,7 @@ void recv_data(int fd, short ev, void *arg) {/*{{{*/
 void write_err(int sig) {/*{{{*/
     if (cur_host < 0) return;
     host_error[cur_host] = 1;
+    PRINTD(1, "Connection with host %s (%d) broken!", addresses[cur_host], cur_host);
     update_host_state(cur_host, 0);
 }/*}}}*/
 
@@ -352,7 +358,7 @@ void register_host_events() {/*{{{*/
     // Register events for all hosts
     int h;
     for (h = 0; h < num_hosts; h++) {
-        if (h == id) {continue;}
+        if (h == id || !status[h]) {continue;}
         struct timeout_args args;
         args.host = h;
         struct event *host_event = event_new(base, sockets[h], EV_READ|EV_PERSIST, recv_data, &args);
@@ -407,14 +413,14 @@ void accept_connection(int fd, short ev, void *arg) {/*{{{*/
             cur_host = -1;
             host_error[client_id] = 0;
             char_count = write(newfd, r, strlen(r));
-            if (host_error[client_id]) {PRINTD(1, "Connection with host %s (%d) broken!", addresses[client_id], client_id); return;}
+            if (host_error[client_id]) return;
             fprintf(stderr, "ID sent (%d) was higher than allowed range!\n", client_id);
             return;
         } else {
             char *r = "200 CONTINUE";
             cur_host = client_id;
             char_count = write(newfd, r, strlen(r));
-            if (host_error[client_id]) {PRINTD(1, "Connection with host %s (%d) broken!", addresses[client_id], client_id); return;}
+            if (host_error[client_id]) return;
         }/*}}}*/
 
         // Check ID matches connection address/*{{{*/
@@ -424,17 +430,18 @@ void accept_connection(int fd, short ev, void *arg) {/*{{{*/
                 char *r = "403 FORBIDDEN";
                 cur_host = client_id;
                 char_count = write(newfd, r, strlen(r));
-                if (host_error[client_id]) {PRINTD(1, "Connection with host %s (%d) broken!", addresses[client_id], client_id); return;}
+                if (host_error[client_id]) return;
+                if (host_error[client_id]) return;
                 fprintf(stderr, "IP address host connected from (%s or %s) does not match config file\n",
                         client_host, client_num_host);
                 return;/*}}}*/
-        } else {
+        } else { // Verify name/pass matches sent ID/*{{{*/
             // Check client sends matching name to ID/*{{{*/
             PRINTD(3, "Checking name and passphrase");
             char *r = "200 CONTINUE";
             cur_host = client_id;
             char_count = write(newfd, r, strlen(r));
-            if (host_error[client_id]) {PRINTD(1, "Connection with host %s (%d) broken!", addresses[client_id], client_id); return;}
+            if (host_error[client_id]) return;
             memset(buffer, '\0', 501);
             read(newfd, buffer, MAX_MSG_LEN);
             char *client_name = create_str(500);
@@ -443,13 +450,13 @@ void accept_connection(int fd, short ev, void *arg) {/*{{{*/
                 r = "404 NOT FOUND";
                 cur_host = client_id;
                 char_count = write(newfd, r, strlen(r));
-                if (host_error[client_id]) {PRINTD(1, "Connection with host %s (%d) broken!", addresses[client_id], client_id); return;}
+                if (host_error[client_id]) return;
                 fprintf(stderr, "Name %s does not exist\n", buffer);
                 return;
             } else {
                 cur_host = client_id;
                 char_count = write(newfd, r, strlen(r));
-                if (host_error[client_id]) {PRINTD(1, "Connection with host %s (%d) broken!", addresses[client_id], client_id); return;}
+                if (host_error[client_id]) return;
             }/*}}}*/
 
             // Verify password against name/*{{{*/
@@ -459,12 +466,12 @@ void accept_connection(int fd, short ev, void *arg) {/*{{{*/
                 r = "401 UNAUTHORIZED";
                 cur_host = client_id;
                 char_count = write(newfd, r, strlen(r));
-                if (host_error[client_id]) {PRINTD(1, "Connection with host %s (%d) broken!", addresses[client_id], client_id); return;}
+                if (host_error[client_id]) return;
                 fprintf(stderr, "Host %s sent invalid passphrase\n", client_name);
                 return;
             } else {
                 char_count = write(newfd, r, strlen(r));
-                if (host_error[client_id]) {PRINTD(1, "Connection with host %s (%d) broken!", addresses[client_id], client_id); return;}
+                if (host_error[client_id]) return;
             }/*}}}*/
 
             free(client_name);
@@ -472,7 +479,7 @@ void accept_connection(int fd, short ev, void *arg) {/*{{{*/
             free(client_serv);
             free(client_num_host);
             free(client_host);
-        }
+        }/*}}}*/
     }/*}}}*/
 
     PRINTD(2, "Host %s is online", addresses[client_id]);
@@ -523,7 +530,6 @@ void connect_to_host(int host) {/*{{{*/
         sprintf(id_auth, "id:%d", id);
         cur_host = host;
         char_count = write(newfd, id_auth, strlen(id_auth));
-        if (host_error[host]) {PRINTD(1, "Connection with host %s (%d) broken!", addresses[host], host); return;}
         read(newfd, response, MAX_MSG_LEN);
         if (!strcmp(response, "400 BAD REQUEST")) {
             fprintf(stderr, "ID %d does not exist!\n", id);
@@ -543,7 +549,7 @@ void connect_to_host(int host) {/*{{{*/
             sprintf(pass_str, "pass:%s", pass_str);
             cur_host = host;
             char_count = write(newfd, name_str, strlen(name_str) + 1);
-            if (host_error[host]) {PRINTD(1, "Connection with host %s (%d) broken!", addresses[host], host); return;}
+            if (host_error[host]) return;
             read(newfd, response, MAX_MSG_LEN);
             if (!strcmp(response, "404 NOT FOUND")) {
                 fprintf(stderr, "Name rejected by %s!\n", address);
@@ -552,7 +558,7 @@ void connect_to_host(int host) {/*{{{*/
             memset(&response, '\0', 101);
             cur_host = host;
             char_count = write(newfd, pass_str, strlen(pass_str) + 1);
-            if (host_error[host]) {PRINTD(1, "Connection with host %s (%d) broken!", addresses[host], host); return;}
+            if (host_error[host]) return;
             read(newfd, response, MAX_MSG_LEN);
             if (!strcmp(response, "401 UNAUTHORIZED")) {
                 fprintf(stderr, "Password rejected by %s!\n", address);
@@ -573,7 +579,7 @@ void connect_to_host(int host) {/*{{{*/
 void connection_timeout(int fd, short ev, void *arg) {/*{{{*/
     struct timeout_args *args = (struct timeout_args*)arg;
     if (last_msg[args->host] + (dead * 1000) < get_cur_time()) {
-        PRINTD(2, "Host %d has not responded in %llu ms", args->host, get_cur_time() - last_msg[args->host]);
+        PRINTD(2, "Host %d has not responded in %llu ms (cur time %llu)", args->host, get_cur_time() - last_msg[args->host], get_cur_time());
         update_host_state(args->host, 0);
     }
 }/*}}}*/
@@ -583,10 +589,11 @@ int update_host_state(int host, int state) {/*{{{*/
     if (status[host] == state) return 0;
     status[host] = state;
     char *func = state ? "hostOnline" : "hostOffline";
+    char *host_str = create_str(4);
+    sprintf(host_str, "%d", host);
     PRINTD(3, "Dispatching DBus call for host %d with state %d", host, state);
     DBUS_INIT_METHOD_CALL(DBUS_HANDLER_NAME, DBUS_HANDLER_PATH, DBUS_HANDLER_NAME, func);
-    DBUS_ADD_ARGS(db_call_msg)
-    DBUS_ADD_INT32(&state);
+    DBUS_ADD_ARGS_SIMPLE(db_call_msg, DBUS_TYPE_STRING, &host_str);
     DBUS_REPLY_SEND(db_call_msg);
     if (!state) {
         last_msg[host] = 0;

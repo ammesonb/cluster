@@ -34,6 +34,7 @@
 #define DBUS_REPLY_SEND(msg) \
     if (!dbus_connection_send(conn, msg, NULL)) \
         return DBUS_HANDLER_RESULT_NEED_MEMORY; \
+    dbus_connection_read_write_dispatch(conn, -1); \
     dbus_connection_flush(conn); \
     dbus_message_unref(msg);
 
@@ -54,6 +55,9 @@
         fprintf(stderr, "Failed to create method call"); \
         return DBUS_HANDLER_RESULT_NEED_MEMORY; \
     }
+
+#define DBUS_ADD_ARGS_SIMPLE(msg, ...) \
+    dbus_message_append_args(msg, ##__VA_ARGS__, DBUS_TYPE_INVALID);
 
 #define DBUS_ADD_ARGS(msg) \
     DBusMessageIter args; \
