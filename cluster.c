@@ -320,7 +320,7 @@ void register_event_base() {/*{{{*/
 
     keepalive = event_new(base, -1, EV_PERSIST, send_keepalive, NULL);
     struct timeval keepalive_tv;
-    keepalive_tv.tv_sec = 5;
+    keepalive_tv.tv_sec = interval;
     keepalive_tv.tv_usec = 0;
     event_add(keepalive, &keepalive_tv);
 
