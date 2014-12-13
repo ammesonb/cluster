@@ -212,8 +212,15 @@ void send_keepalive(int host, short ev, void* arg) {/*{{{*/
 void recv_data(int fd, short ev, void *arg) {/*{{{*/
     // Read and parse data from host
     struct timeout_args *args = (struct timeout_args*)arg;
-    PRINTD(2, "Receiving data from host %s (%d)", addresses[args->host], args->host);
-    last_msg[args->host] = get_cur_time();
+    int host = args->host;
+    PRINTD(3, "Receiving data from host %s (%d)", addresses[host], host);
+    char *buf = create_str(MAX_MSG_LEN);
+    int count = read(sockets[host], buf, MAX_MSG_LEN);
+    if (count) {
+        PRINTD(3, "Received %s from host %s (%d)", buf, addresses[host], host);
+        last_msg[host] = get_cur_time();
+    }
+    free(buf);
 }/*}}}*/
 
 void load_hosts(char *hosts) {/*{{{*/
@@ -378,7 +385,6 @@ void accept_connection(int fd, short ev, void *arg) {/*{{{*/
     // Authenticate host/*{{{*/
     PRINTD(3, "Verifying ID")
     char *buffer = create_str(MAX_MSG_LEN);
-    memset(buffer, '\0', MAX_MSG_LEN + 1);
     read(newfd, buffer, MAX_MSG_LEN);
     int client_id = -1;
     // Check ID is within reasonable bounds/*{{{*/
