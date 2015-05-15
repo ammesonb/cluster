@@ -2,6 +2,30 @@
 #define _DBUS_LIB_H
 #include <dbus/dbus.h>
 
+int debug;
+
+#define DBUS_FUNC(function) \
+    static DBusHandlerResult function(DBusConnection *conn, DBusMessage *dbmsg, void *this)
+
+void dispatch(int, short, void*);
+void handle_dispatch_status(DBusConnection*, DBusDispatchStatus, void*);
+void handle_watch(int, short, void*);
+dbus_bool_t add_watch(DBusWatch*, void*);
+void remove_watch(DBusWatch*, void*);
+void toggle_watch(DBusWatch*, void*);
+void handle_timeout(int, short, void*);
+dbus_bool_t add_timeout(DBusTimeout*, void*);
+void remove_timeout(DBusTimeout*, void*);
+void toggle_timeout(DBusTimeout*, void*);
+DBUS_FUNC(message_handler);
+DBUS_FUNC(message_filter);
+
+#define   MAX_WATCHES    256
+#define   MAX_EVENT_NAME 256
+extern int watches;
+extern int event_fds[];
+extern char **event_names;
+
 #define DBUS_CHECK_ERR(str, err) \
     if (dbus_error_is_set(&err)) { \
         fprintf(stderr, "%s%s\n", str, err.message); \
@@ -21,8 +45,27 @@
     DBUS_CHECK_ERR("Failed to register object path: ", dbus_init_error); \
     dbus_error_free(&dbus_init_error);
 
-#define DBUS_FUNC(function) \
-    static DBusHandlerResult function(DBusConnection *conn, DBusMessage *dbmsg, void *this)
+#define DBUS_SET_WATCH(add, rm, tog, arg) \
+    if (!dbus_connection_set_watch_functions(conn, add, rm, tog, arg, NULL)) \
+        return DBUS_HANDLER_RESULT_NEED_MEMORY;
+    
+#define DBUS_ADD_FILTER(func, arg) \
+    if (dbus_connection_add_filter(conn, func, arg, NULL) == FALSE) \
+        return DBUS_HANDLER_RESULT_NEED_MEMORY;
+
+#define DBUS_SET_TIMEOUT(add, rm, tog, arg) \
+    if (!dbus_connection_set_timeout_functions(conn, add, rm, tog, arg, NULL)) \
+        return DBUS_HANDLER_RESULT_NEED_MEMORY;
+
+#define DBUS_ASYNC_DISPATCH(func, arg) \
+    dbus_connection_set_dispatch_status_function(conn, func, arg, NULL);
+
+#define DBUS_ADD_MATCH(match) \
+    DBusError err; \
+    dbus_error_init(&err); \
+    dbus_bus_add_match(conn, match, &err); \
+    DBUS_CHECK_ERR("Failed to add match", err); \
+    dbus_error_free(&err);
 
 #define DBUS_SIG(function) \
     static DBusHandlerResult function(DBusConnection *conn, void *data)
@@ -34,7 +77,6 @@
 #define DBUS_REPLY_SEND(msg) \
     if (!dbus_connection_send(conn, msg, NULL)) \
         return DBUS_HANDLER_RESULT_NEED_MEMORY; \
-    dbus_connection_read_write_dispatch(conn, -1); \
     dbus_connection_flush(conn); \
     dbus_message_unref(msg);
 
