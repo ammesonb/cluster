@@ -1,4 +1,10 @@
 #include "common.h"
+#include <string>
+#include <fstream>
+#include <streambuf>
+
+using std::string;
+using std::ifstream;
 
 namespace Cluster {
     const char *DBUS_PATH = "/com/bammeson/cluster";
@@ -20,16 +26,15 @@ namespace Cluster {
         return cur;
     }/*}}}*/
 
-    char* read_file(char *name) {/*{{{*/
+    string read_file(char *name) {/*{{{*/
         PRINTD(3, "Attempting to read file %s", name);
-        struct stat *s = NULL;
-        s = (struct stat*)malloc(sizeof(struct stat));
-        stat(name, s);
-        int file = open(name, O_RDONLY);
-        char *data = create_str(s->st_size);
-        read(file, data, s->st_size);
-        close(file);
-        free(s);
-        return data;
+        ifstream f(name);
+        string str;
+        f.seekg(0, std::ios::end);
+        str.reserve(f.tellg());
+        f.seekg(0, std::ios::beg);
+
+        str.assign((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+        return str;
     }/*}}}*/
 }

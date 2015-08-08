@@ -9,8 +9,11 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <string.h>
+#include <string>
 #include <sys/time.h>
 #include <dbus/dbus.h>
+
+using std::string;
 
 namespace Cluster {
     extern DBusConnection *conn;
@@ -22,6 +25,6 @@ namespace Cluster {
     extern int debug;
     char* create_str(int length);
     unsigned long long get_cur_time();
-    char* read_file(char *name);
+    string read_file(char *name);
 }
 #endif
