@@ -2,35 +2,18 @@
 #define _DBUS_LIB_H
 #include <dbus/dbus.h>
 
-int debug;
-
-#define DBUS_FUNC(function) \
-    static DBusHandlerResult function(DBusConnection *conn, DBusMessage *dbmsg, void *this)
-
-void dispatch(int, short, void*);
-void handle_dispatch_status(DBusConnection*, DBusDispatchStatus, void*);
-void handle_watch(int, short, void*);
-dbus_bool_t add_watch(DBusWatch*, void*);
-void remove_watch(DBusWatch*, void*);
-void toggle_watch(DBusWatch*, void*);
-void handle_timeout(int, short, void*);
-dbus_bool_t add_timeout(DBusTimeout*, void*);
-void remove_timeout(DBusTimeout*, void*);
-void toggle_timeout(DBusTimeout*, void*);
-DBUS_FUNC(message_handler);
-DBUS_FUNC(message_filter);
-
 #define   MAX_WATCHES    256
 #define   MAX_EVENT_NAME 256
-extern int watches;
-extern int event_fds[];
-extern char **event_names;
+
+#define DBUS_FUNC(function) \
+    static DBusHandlerResult function(DBusConnection *conn, DBusMessage *dbmsg, void *_this)
+
 
 #define DBUS_CHECK_ERR(str, err) \
     if (dbus_error_is_set(&err)) { \
         fprintf(stderr, "%s%s\n", str, err.message); \
         dbus_error_free(&err); \
-        return EXIT_FAILURE; \
+        return DBUS_HANDLER_RESULT_NEED_MEMORY; \
     }
 
 #define DBUS_INIT(name, path, message_func) \
@@ -128,5 +111,24 @@ extern char **event_names;
     DBUS_ADD_ARGS(db_reply_msg) \
     DBUS_ADD_STRING(&introspec_xml) \
     DBUS_REPLY_SEND(db_reply_msg)
+
+namespace Cluster {
+    void dispatch(int, short, void*);
+    void handle_dispatch_status(DBusConnection*, DBusDispatchStatus, void*);
+    void handle_watch(int, short, void*);
+    dbus_bool_t add_watch(DBusWatch*, void*);
+    void remove_watch(DBusWatch*, void*);
+    void toggle_watch(DBusWatch*, void*);
+    void handle_timeout(int, short, void*);
+    dbus_bool_t add_timeout(DBusTimeout*, void*);
+    void remove_timeout(DBusTimeout*, void*);
+    void toggle_timeout(DBusTimeout*, void*);
+    DBUS_FUNC(message_handler);
+    DBUS_FUNC(message_filter);
+
+    extern int watches;
+    extern int event_fds[];
+    extern char **event_names;
+}
 
 #endif

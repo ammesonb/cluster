@@ -12,14 +12,16 @@
 #include <sys/time.h>
 #include <dbus/dbus.h>
 
-extern DBusConnection *conn;
-extern char *DBUS_PATH;
-extern char *DBUS_NAME;
-extern char *DBUS_HANDLER_PATH;
-extern char *DBUS_HANDLER_NAME;
+namespace Cluster {
+    extern DBusConnection *conn;
+    extern const char *DBUS_PATH;
+    extern const char *DBUS_NAME;
+    extern const char *DBUS_HANDLER_PATH;
+    extern const char *DBUS_HANDLER_NAME;
 
-extern int debug;
-char* create_str(int length);
-unsigned long long get_cur_time();
-char* read_file(char *name);
+    extern int debug;
+    char* create_str(int length);
+    unsigned long long get_cur_time();
+    char* read_file(char *name);
+}
 #endif
