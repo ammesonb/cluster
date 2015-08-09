@@ -2,6 +2,7 @@
 #define CLUSTER_COMMON_H
 
 #define   PRINTD(level, d_str, args...) if (debug >= level) printf("DEBUG%d: ", level); printf(d_str, ##args); printf("\n");
+#define   STRLITFIX(str) (char*)string(str).c_str()
 
 #include <stdio.h>
 #include <stdlib.h>
