@@ -23,7 +23,6 @@
 #include "service.h"
 
 #define   DIE(str) fprintf(stderr, "%s\n", str); exit(1);
-#define   PRINTD(level, d_str, args...) if (debug >= level) printf("DEBUG%d: ", level); printf(d_str, ##args); printf("\n");
 
  // Introspection for DBus/*{{{*/
  const char *introspec_xml =
@@ -44,6 +43,7 @@
  "</node>\n";/*}}}*/
 
 using std::string;
+using std::cout;
 using std::cerr;
 using std::endl;
 
@@ -55,7 +55,7 @@ namespace Cluster {
     // Config variables/*{{{*/
     cfg_t *cfg;
     cfg_bool_t text = cfg_false;
-    int PORT, debug, interval, dead;
+    int PORT, debug = 2, interval, dead;
     char *email = NULL, *crit_files = NULL, *crit_dirs = NULL;/*}}}*/
 
 
@@ -100,22 +100,54 @@ namespace Cluster {
 using namespace Cluster;
 
 int main(int argc, char *argv[]) {
-    PRINTD(2, "Loading config");
+    PRINTD(2, "Loading config file");
     // Load configuration/*{{{*/
     cfg_opt_t config[] = {
-        CFG_SIMPLE_INT(STRLITFIX("port"), &PORT),
-        CFG_SIMPLE_INT(STRLITFIX("beat_interval"), &interval),
-        CFG_SIMPLE_INT(STRLITFIX("dead_time"), &dead),
-        CFG_SIMPLE_STR(STRLITFIX("email"), &email),
-        CFG_SIMPLE_BOOL(STRLITFIX("text_alerts"), &text),
-        CFG_SIMPLE_INT(STRLITFIX("verbosity"), &debug),
-        CFG_SIMPLE_STR(STRLITFIX("critical_files"), &crit_files),
-        CFG_SIMPLE_STR(STRLITFIX("critical_dirs"), &crit_dirs),
+        CFG_SIMPLE_INT("port", &PORT),
+        CFG_SIMPLE_INT("beat_interval", &interval),
+        CFG_SIMPLE_INT("dead_time", &dead),
+        CFG_SIMPLE_STR("email", &email),
+        CFG_SIMPLE_BOOL("text_alerts", &text),
+        CFG_SIMPLE_INT("verbosity", &debug),
+        CFG_SIMPLE_STR("critical_files", &crit_files),
+        CFG_SIMPLE_STR("critical_dirs", &crit_dirs),
         CFG_END()
     };
 
     cfg = cfg_init(config, 0);
     cfg_parse(cfg, "cluster.conf");/*}}}*/
+
+    PRINTD(1, "Found debug level %d", debug);
+    PRINTD(3, "Loading hosts");
+    string hosts = read_file(STRLITFIX("hosts"));
+    start_split(hosts, "\n");
+    string ho = get_split();
+    while (ho.length() > 0) {
+        Host host;
+        start_split(ho, " ");
+        string hostname = get_split();
+        PRINTD(3, "Parsing host %s", hostname.c_str());
+        end_split();
+        ho = get_split();
+    }
+
+
+    PRINTD(3, "Loading services");
+    string services = read_file(STRLITFIX("services"));
+    start_split(services, "\n");
+    string serv = get_split();
+    while (serv.length() > 0) {
+        Service service;
+        int name_ind = serv.find(" ");
+        service.name = serv.substr(0, name_ind);
+        start_split(serv, " ");
+        string servname = get_split();
+        PRINTD(3, "Parsing service %s", servname.c_str());
+        end_split();
+        serv = get_split();
+    }
+
+    PRINTD(2, "Initializing session");
 
     PRINTD(3, "Opening DBus");
     // Open DBus connection/*{{{*/
