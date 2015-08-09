@@ -12,14 +12,15 @@ using std::vector;
 namespace Cluster {
     class Host {
         public:
+            int id;
             string address;
             int port;
             int socket;
-            unsigned long long last_msg; 
-            bool online;
+            unsigned long long last_msg = 0;
+            bool online = false;
             bool dynamic;
             vector<Service> services;
-        private:
+        protected:
             string password;
     };
 }

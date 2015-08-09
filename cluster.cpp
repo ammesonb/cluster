@@ -16,13 +16,12 @@
 #include <netdb.h>
 #include <string>
 #include <iostream>
+#include <vector>
 
 #include "dbus_common.h"
 #include "common.h"
 #include "host.h"
 #include "service.h"
-
-#define   DIE(str) fprintf(stderr, "%s\n", str); exit(1);
 
  // Introspection for DBus/*{{{*/
  const char *introspec_xml =
@@ -42,6 +41,7 @@
  "  </interface>\n"
  "</node>\n";/*}}}*/
 
+using std::vector;
 using std::string;
 using std::cout;
 using std::cerr;
@@ -58,6 +58,8 @@ namespace Cluster {
     int PORT, debug = 2, interval, dead;
     char *email = NULL, *crit_files = NULL, *crit_dirs = NULL;/*}}}*/
 
+    vector<Host> host_list;
+    vector<Service> service_list;
 
     DBUS_FUNC(dbus_handler) {/*{{{*/
         int handled = 0;
@@ -122,13 +124,31 @@ int main(int argc, char *argv[]) {
     string hosts = read_file(STRLITFIX("hosts"));
     start_split(hosts, "\n");
     string ho = get_split();
+    int host_num = 0;
     while (ho.length() > 0) {
         Host host;
         start_split(ho, " ");
         string hostname = get_split();
+        if (hostname.length() == 0) {DIE("Bad formatting for host on line %d, requires hostname", host_num);}
         PRINTD(3, "Parsing host %s", hostname.c_str());
-        end_split();
+        host.address = hostname;
+        host.id = host_num;
+        string host_port = get_split();
+        if (host_port.length() == 0) {DIE("Bad formatting for host on line %d, requires port", host_num);}
+        host.port = atoi(host_port.c_str());
+        PRINTD(4, "Host is on port %d", host.port);
+        bool dyn = false;
+        if (is_ip(hostname)) {dyn = true; PRINTD(3, "Host is dynamic");}
+        host.dynamic = dyn;
+        if (dyn) {
+            string host_pass = get_split();
+            if (host_pass.length() == 0) {DIE("Bad formatting for host on line %d, dynamic host requires password for validation", host_num);}
+        }
+        if (get_split().length() != 0) {DIE("Bad formatting for host on line %d, extra data found", host_num);}
+        end_split(1);
         ho = get_split();
+        host_num++;
+        host_list.push_back(host);
     }
 
 
@@ -136,15 +156,17 @@ int main(int argc, char *argv[]) {
     string services = read_file(STRLITFIX("services"));
     start_split(services, "\n");
     string serv = get_split();
+    int serv_num = 0;
     while (serv.length() > 0) {
         Service service;
-        int name_ind = serv.find(" ");
-        service.name = serv.substr(0, name_ind);
         start_split(serv, " ");
         string servname = get_split();
+        if (servname.length() == 0) {DIE("Bad formatting for service on line %d, requires name", serv_num);}
         PRINTD(3, "Parsing service %s", servname.c_str());
-        end_split();
+        end_split(1);
         serv = get_split();
+        serv_num++;
+        service_list.push_back(service);
     }
 
     PRINTD(2, "Initializing session");

@@ -27,16 +27,16 @@ namespace Cluster {
         return s;
     }/*}}}*/
 
-    void start_split(string s, string d) {
-        if (string_split_level != -1 && string_split_offset[string_split_level] != 0) string_split_level++;
-        if (string_split_level == -1) string_split_level = 0;
-        PRINTD(5, "Starting split level %d", string_split_level);
-        string_split_source.push_back(s);
-        string_split_delim.push_back(d);
-        string_split_offset.push_back(0);
-        last_string_split_offset.push_back(0);
-    }
+    bool is_ip(string s) {/*{{{*/
+        bool ip = true;
+        for (int i = 0; i < s.length(); i++) {
+            ip &= (s[i] == '.' || ('0' <= s[i] && s[i] <= '9'));
+            if (!ip) return false;
+        }
+        return ip;
+    }/*}}}*/
 
+    // String split getters/*{{{*/
     string sp_getsrc() {
         return string_split_source[string_split_level];
     }
@@ -51,31 +51,43 @@ namespace Cluster {
 
     int sp_getlastoff() {
         return last_string_split_offset[string_split_level];
-    }
+    }/*}}}*/
 
-    string get_split() {
-        if (sp_getsrc().find(sp_getdel(), sp_getoff()) > sp_getsrc().length()) {
-            end_split();
+    void start_split(string s, string d) {/*{{{*/
+        if (string_split_level != -1 && string_split_offset[string_split_level] != 0) string_split_level++;
+        if (string_split_level == -1) string_split_level = 0;
+        PRINTD(5, "Starting split level %d", string_split_level);
+        string_split_source.push_back(s);
+        string_split_delim.push_back(d);
+        string_split_offset.push_back(0);
+        last_string_split_offset.push_back(0);
+    }/*}}}*/
+
+    string get_split() {/*{{{*/
+        if (sp_getsrc().find(sp_getdel(), sp_getoff()) > sp_getsrc().length() && sp_getsrc().length() - sp_getoff() == 0) {
+            end_split(string_split_level);
             return "";
         }
         //PRINTD(5, "Found token at %d for delimiter %d", sp_getsrc().find(sp_getdel(), sp_getoff()), sp_getdel().c_str()[0]);
         last_string_split_offset[string_split_level] = sp_getoff();
         string_split_offset[string_split_level] = sp_getsrc().find(sp_getdel(), sp_getoff());
+        if (sp_getoff() > sp_getsrc().length()) string_split_offset[string_split_level] = sp_getsrc().length();
         PRINTD(5, "Returning substr from %d to %d", sp_getlastoff(), sp_getoff());
         string string_split_ret = sp_getsrc().substr(sp_getlastoff(), sp_getoff() - sp_getlastoff());
         if (sp_getoff() < sp_getsrc().length())
             string_split_offset[string_split_level] = sp_getoff() + 1;
         return string_split_ret;
-    }
+    }/*}}}*/
 
-    void end_split() {
+    void end_split(int level) {/*{{{*/
+        if (string_split_level != level) return;
         PRINTD(5, "Ending split level %d", string_split_level);
         last_string_split_offset.pop_back();
         string_split_offset.pop_back();
         string_split_source.pop_back();
         string_split_delim.pop_back();
         string_split_level--;
-    }
+    }/*}}}*/
 
     unsigned long long get_cur_time() {/*{{{*/
         struct timeval cur_time;

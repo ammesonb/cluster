@@ -14,6 +14,7 @@ namespace Cluster {
 
     class Service {
         public:
+            int id;
             string name;
             vector<Host> hosts;
     };
