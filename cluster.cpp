@@ -17,6 +17,7 @@
 #include <string>
 #include <iostream>
 #include <vector>
+#include <map>
 
 #include "dbus_common.h"
 #include "common.h"
@@ -42,6 +43,7 @@
  "</node>\n";/*}}}*/
 
 using std::vector;
+using std::map;
 using std::string;
 using std::cout;
 using std::cerr;
@@ -58,8 +60,8 @@ namespace Cluster {
     int PORT, debug = 2, interval, dead;
     char *email = NULL, *crit_files = NULL, *crit_dirs = NULL;/*}}}*/
 
-    vector<Host> host_list;
-    vector<Service> service_list;
+    map<int, Host> host_list;
+    map<int, Service> serv_list;
 
     DBUS_FUNC(dbus_handler) {/*{{{*/
         int handled = 0;
@@ -147,8 +149,8 @@ int main(int argc, char *argv[]) {
         if (get_split().length() != 0) {DIE("Bad formatting for host on line %d, extra data found", host_num);}
         end_split(1);
         ho = get_split();
+        host_list[host_num] = host;
         host_num++;
-        host_list.push_back(host);
     }
 
 
@@ -159,14 +161,29 @@ int main(int argc, char *argv[]) {
     int serv_num = 0;
     while (serv.length() > 0) {
         Service service;
+        vector<Host> serv_hosts;
         start_split(serv, " ");
         string servname = get_split();
         if (servname.length() == 0) {DIE("Bad formatting for service on line %d, requires name", serv_num);}
         PRINTD(3, "Parsing service %s", servname.c_str());
+        string host1 = get_split();
+        if (host1.length() == 0) {DIE("Bad formatting for service on line %d, requires at least one host", serv_num);}
+        PRINTD(5, "Host %s is subscribed", host_list[atoi(host1.c_str())].address.c_str());
+        serv_hosts.push_back(host_list[atoi(host1.c_str())]);
+        int hosts_found = 1;
+        while (get_split_level() == 1) {
+            string host = get_split();
+            if (hosts_found == 1 && host.length() == 0) PRINTD(2, "Service %s only has one host! Consider adding another for redundancy.", servname.c_str());
+            if (host.length() == 0) break;
+            PRINTD(5, "Host %s is subscribed", host_list[atoi(host.c_str())].address.c_str());
+            serv_hosts.push_back(host_list[atoi(host.c_str())]);
+            hosts_found++;
+        }
         end_split(1);
         serv = get_split();
+        service.hosts = serv_hosts;
+        serv_list[serv_num] = service;
         serv_num++;
-        service_list.push_back(service);
     }
 
     PRINTD(2, "Initializing session");
@@ -188,6 +205,7 @@ int main(int argc, char *argv[]) {
     PRINTD(3, "Determining my ID");
     // Read in machine number and set ping message/*{{{*/
     string my_id = read_file(STRLITFIX("/var/opt/cluster/id"));
+    PRINTD(3, "My ID is %s", my_id.c_str());
     string ping_msg;
     ping_msg.reserve(my_id.length() + 5);
     ping_msg.append(my_id).append("-ping");

@@ -53,6 +53,10 @@ namespace Cluster {
         return last_string_split_offset[string_split_level];
     }/*}}}*/
 
+    int get_split_level() {/*{{{*/
+        return string_split_level;
+    }/*}}}*/
+
     void start_split(string s, string d) {/*{{{*/
         if (string_split_level != -1 && string_split_offset[string_split_level] != 0) string_split_level++;
         if (string_split_level == -1) string_split_level = 0;

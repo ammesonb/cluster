@@ -28,6 +28,7 @@ namespace Cluster {
 
     extern int debug;
     void start_split(string source, string delim);
+    int get_split_level();
     string get_split();
     void end_split(int level);
     char* create_str(int length);
