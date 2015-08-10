@@ -66,14 +66,14 @@ namespace Cluster {
     DBUS_FUNC(dbus_handler) {/*{{{*/
         int handled = 0;
         const char *iface = dbus_message_get_interface(dbmsg);
-        PRINTD(3, "Received DBus message on %s", iface);
+        PRINTD(3, 0, "Received DBus message on %s", iface);
         if (!strcmp(iface, DBUS_INTERFACE_INTROSPECTABLE)) {
             DBUS_INTROSPEC
             handled = 1;
         } else if (!strcmp(iface, DBUS_NAME)) {
             if (dbus_message_is_method_call(dbmsg, DBUS_NAME, "updateHandlerPID")) {
                 DBUS_GET_ARGS(DBUS_TYPE_INT32, &handler_pid);
-                PRINTD(3, "Handler pid set to %d", handler_pid);
+                PRINTD(3, 0, "Handler pid set to %d", handler_pid);
                 int ret = 1;
                 DBUS_REPLY_INIT
                 DBUS_ADD_ARGS(db_reply_msg)
@@ -87,15 +87,15 @@ namespace Cluster {
     }/*}}}*/
 
     void* dbus_loop(void* args) {/*{{{*/
-        PRINTD(1, "Entering main DBus loop");
+        PRINTD(1, 0, "Entering main DBus loop");
         while (dbus_connection_read_write_dispatch(conn, -1));
         return NULL;
     }/*}}}*/
 
     int init_dbus() {/*{{{*/
-        PRINTD(2, "Initializing DBus");
+        PRINTD(2, 0, "Initializing DBus");
         DBUS_INIT(DBUS_NAME, DBUS_PATH, dbus_handler)
-        PRINTD(2, "Dispatching DBus thread");
+        PRINTD(2, 1, "Dispatching DBus thread");
         pthread_create(&dbus_dispatcher, NULL, dbus_loop, NULL);
         return EXIT_SUCCESS;
     }/*}}}*/
@@ -104,7 +104,7 @@ namespace Cluster {
 using namespace Cluster;
 
 int main(int argc, char *argv[]) {
-    PRINTD(2, "Loading config file");
+    PRINTD(2, 0, "Loading config file");
     // Load configuration/*{{{*/
     cfg_opt_t config[] = {
         CFG_SIMPLE_INT("port", &PORT),
@@ -121,8 +121,8 @@ int main(int argc, char *argv[]) {
     cfg = cfg_init(config, 0);
     cfg_parse(cfg, "cluster.conf");/*}}}*/
 
-    PRINTD(1, "Found debug level %d", debug);
-    PRINTD(3, "Loading hosts");
+    PRINTD(1, 1, "Found debug level %d", debug);
+    PRINTD(3, 1, "Loading hosts");
     string hosts = read_file(STRLITFIX("hosts"));
     start_split(hosts, "\n");
     string ho = get_split();
@@ -132,15 +132,15 @@ int main(int argc, char *argv[]) {
         start_split(ho, " ");
         string hostname = get_split();
         if (hostname.length() == 0) {DIE("Bad formatting for host on line %d, requires hostname", host_num);}
-        PRINTD(3, "Parsing host %s", hostname.c_str());
+        PRINTD(3, 2, "Parsing host %s", hostname.c_str());
         host.address = hostname;
         host.id = host_num;
         string host_port = get_split();
         if (host_port.length() == 0) {DIE("Bad formatting for host on line %d, requires port", host_num);}
         host.port = atoi(host_port.c_str());
-        PRINTD(4, "Host is on port %d", host.port);
+        PRINTD(4, 3, "Host is on port %d", host.port);
         bool dyn = false;
-        if (is_ip(hostname)) {dyn = true; PRINTD(3, "Host is dynamic");}
+        if (is_ip(hostname)) {dyn = true; PRINTDI(3, "Host is dynamic");}
         host.dynamic = dyn;
         if (dyn) {
             string host_pass = get_split();
@@ -154,7 +154,7 @@ int main(int argc, char *argv[]) {
     }
 
 
-    PRINTD(3, "Loading services");
+    PRINTD(3, 1, "Loading services");
     string services = read_file(STRLITFIX("services"));
     start_split(services, "\n");
     string serv = get_split();
@@ -165,20 +165,21 @@ int main(int argc, char *argv[]) {
         start_split(serv, " ");
         string servname = get_split();
         if (servname.length() == 0) {DIE("Bad formatting for service on line %d, requires name", serv_num);}
-        PRINTD(3, "Parsing service %s", servname.c_str());
+        PRINTD(3, 2, "Parsing service %s", servname.c_str());
         string host1 = get_split();
         if (host1.length() == 0) {DIE("Bad formatting for service on line %d, requires at least one host", serv_num);}
-        PRINTD(5, "Host %s is subscribed", host_list[atoi(host1.c_str())].address.c_str());
+        PRINTD(5, 3, "Host %s is subscribed", host_list[atoi(host1.c_str())].address.c_str());
         serv_hosts.push_back(host_list[atoi(host1.c_str())]);
         int hosts_found = 1;
         while (get_split_level() == 1) {
             string host = get_split();
-            if (hosts_found == 1 && host.length() == 0) PRINTD(2, "Service %s only has one host! Consider adding another for redundancy.", servname.c_str());
+            if (hosts_found == 1 && host.length() == 0) PRINTD(2, 3, "Service %s only has one host! Consider adding another for redundancy.", servname.c_str());
             if (host.length() == 0) break;
-            PRINTD(5, "Host %s is subscribed", host_list[atoi(host.c_str())].address.c_str());
+            PRINTDI(5, "Host %s is subscribed", host_list[atoi(host.c_str())].address.c_str());
             serv_hosts.push_back(host_list[atoi(host.c_str())]);
             hosts_found++;
         }
+        PRINTD(4, 3, "Found %d hosts", hosts_found);
         end_split(1);
         serv = get_split();
         service.hosts = serv_hosts;
@@ -186,9 +187,9 @@ int main(int argc, char *argv[]) {
         serv_num++;
     }
 
-    PRINTD(2, "Initializing session");
+    PRINTD(2, 0, "Initializing session");
 
-    PRINTD(3, "Opening DBus");
+    PRINTD(3, 1, "Opening DBus");
     // Open DBus connection/*{{{*/
     DBusError dberror;
 
@@ -202,10 +203,10 @@ int main(int argc, char *argv[]) {
     }
     dbus_error_free(&dberror);/*}}}*/
 
-    PRINTD(3, "Determining my ID");
+    PRINTD(3, 1, "Determining my ID");
     // Read in machine number and set ping message/*{{{*/
     string my_id = read_file(STRLITFIX("/var/opt/cluster/id"));
-    PRINTD(3, "My ID is %s", my_id.c_str());
+    PRINTDI(3, "My ID is %s", my_id.c_str());
     string ping_msg;
     ping_msg.reserve(my_id.length() + 5);
     ping_msg.append(my_id).append("-ping");

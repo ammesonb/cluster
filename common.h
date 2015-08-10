@@ -1,7 +1,8 @@
 #ifndef CLUSTER_COMMON_H
 #define CLUSTER_COMMON_H
 
-#define   PRINTD(level, d_str, args...) if (debug >= level) {printf("DEBUG%d: ", level); printf(d_str, ##args); printf("\n");}
+#define   PRINTD(level, indent, d_str, args...) if (debug >= level) {PRINTD_INDENT_LEVEL = indent; printf("%sDEBUG%d: ", string(indent * 4, ' ').c_str(), level); printf(d_str, ##args); printf("\n");}
+#define   PRINTDI(level, d_str, args...) if (debug >= level) {printf("%sDEBUG%d: ", string(PRINTD_INDENT_LEVEL * 4, ' ').c_str(), level); printf(d_str, ##args); printf("\n");}
 #define   DIE(str, args...) fprintf(stderr, " FATAL: " str "\n", ##args); exit(1);
 #define   STRLITFIX(str) (char*)string(str).c_str()
 
@@ -18,15 +19,18 @@
 using std::string;
 
 namespace Cluster {
+    extern int PRINTD_INDENT_LEVEL;
     extern DBusConnection *conn;
     extern const char *DBUS_PATH;
     extern const char *DBUS_NAME;
     extern const char *DBUS_HANDLER_PATH;
     extern const char *DBUS_HANDLER_NAME;
 
-    bool is_ip(string s);
 
     extern int debug;
+
+    bool is_ip(string s);
+
     void start_split(string source, string delim);
     int get_split_level();
     string get_split();
