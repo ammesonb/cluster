@@ -59,7 +59,7 @@ namespace Cluster {
     // Config variables/*{{{*/
     cfg_t *cfg;
     cfg_bool_t text = cfg_false;
-    int PORT, debug = 2, interval, dead;
+    int port, debug = 2, interval, dead;
     char *email = NULL, *crit_files = NULL, *crit_dirs = NULL;/*}}}*/
 
     map<int, Host> host_list;
@@ -106,10 +106,10 @@ namespace Cluster {
 using namespace Cluster;
 
 int main(int argc, char *argv[]) {
-    PRINTD(2, 0, "Loading config file");
+    PRINTD(1, 0, "Loading config file");
     // Load configuration/*{{{*/
     cfg_opt_t config[] = {
-        CFG_SIMPLE_INT("port", &PORT),
+        CFG_SIMPLE_INT("port", &port),
         CFG_SIMPLE_INT("beat_interval", &interval),
         CFG_SIMPLE_INT("dead_time", &dead),
         CFG_SIMPLE_STR("email", &email),
@@ -220,7 +220,7 @@ int main(int argc, char *argv[]) {
         DIE("I am not online");
     }
 
-    start_accept_thread();
+    start_accept_thread(port);
 
     PRINTD(3, 1, "Attempting to connect to all hosts");
     for (auto it = host_list.begin(); it != host_list.end(); it++) {

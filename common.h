@@ -7,6 +7,9 @@
 #define   PRINTDI(level, d_str, args...) if (debug >= level) {\
           printf("%sDEBUG%d: ", string(PRINTD_INDENT_LEVEL * 4, ' ').c_str(), level);\
           printf(d_str, ##args); printf("\n");}
+#define   PRINTDR(level, indent_offset, d_str, args...) if (debug >= level) {\
+          printf("%sDEBUG%d: ", string((PRINTD_INDENT_LEVEL + indent_offset) * 4, ' ').c_str(), level);\
+          printf(d_str, ##args); printf("\n");}
 #define   DIE(str, args...) fprintf(stderr, " FATAL: " str "\n", ##args); exit(1);
 #define   STRLITFIX(str) (char*)string(str).c_str()
 
