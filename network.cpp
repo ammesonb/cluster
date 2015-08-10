@@ -4,6 +4,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <netinet/ip.h>
+#include <arpa/inet.h>
 
 #include "common.h"
 #include "network.h"
@@ -11,8 +12,25 @@
 namespace Cluster {
     int acceptfd;
 
-    bool verify_connectivity() {
+    bool verify_connectivity() {/*{{{*/
         return (system("curl -s www.google.com -o /dev/null") == 0);
+    }/*}}}*/
+
+    void* accept_thread() {
+        while (keep_running) {
+            struct sockaddr_in client_addr;
+            int client_len = sizeof(client_addr);
+            int client_fd = accept(acceptfd, (struct sockaddr*)&client_addr, (socklen_t*)&client_len);
+            char* addr = inet_ntoa(client_addr.sin_addr);
+            if (client_fd < 0) PRINTD(1, 0, "Failed to accept a connection from %s", addr);
+            // TODO authenticate client
+            // TODO update host status
+            // TODO spawn threads for checking keepalive status/validating commands
+            // TODO or maybe have one master thread for all of them? That'd make more sense
+        }
+
+        PRINTD(1, 0, "Accept thread is exiting");
+        return NULL;
     }
 
     void start_accept_thread(int port) {
@@ -32,9 +50,13 @@ namespace Cluster {
         }
 
         if (listen(acceptfd, 10) < 0) {DIE("Failed to listen on accept socket");}
+
+        // TODO write accept function and start thread
+        // TODO need to set hosts/services variables as extern in common?
     }
 
     void connect_to_host(Host h) {
+        // TODO write this
     }
 
     void set_sock_opts(int sockfd) { /*{{{*/

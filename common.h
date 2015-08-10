@@ -22,7 +22,13 @@
 #include <string>
 #include <sys/time.h>
 #include <dbus/dbus.h>
+#include <vector>
+#include <map>
 
+#include "host.h"
+#include "service.h"
+
+using std::map;
 using std::string;
 
 namespace Cluster {
@@ -33,6 +39,10 @@ namespace Cluster {
     extern const char *DBUS_HANDLER_PATH;
     extern const char *DBUS_HANDLER_NAME;
 
+    extern map<int, Host> host_list;
+    extern map<int, Service> serv_list;
+
+    extern bool keep_running;
     extern int debug;
 
     bool is_ip(string s);

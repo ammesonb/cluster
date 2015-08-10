@@ -56,6 +56,8 @@ namespace Cluster {
     DBusConnection *conn;
     string ping_msg;
 
+    bool keep_running = true;
+
     // Config variables/*{{{*/
     cfg_t *cfg;
     cfg_bool_t text = cfg_false;
@@ -197,10 +199,7 @@ int main(int argc, char *argv[]) {
     dbus_error_init(&dberror);
     conn = dbus_bus_get(DBUS_BUS_SESSION, &dberror);
     if (!conn || conn == NULL) {
-        printf("Connection to D-BUS daemon failed: %s", dberror.message);
-
-        dbus_error_free(&dberror);
-        return 1;
+        DIE("Connection to D-BUS daemon failed: %s", dberror.message);
     }
     dbus_error_free(&dberror);/*}}}*/
 
@@ -228,6 +227,11 @@ int main(int argc, char *argv[]) {
         PRINTD(3, 2, "Connecting to host %s", h.address.c_str());
         connect_to_host(h);
     }
+
+    // TODO need some sort of main loop
+    // TODO maybe have this as my keepalive loop?
+    // TODO work in a way to do the file updates - checksum in keepalive loop?
+    // TODO or file time stamps maybe?
     
     return 0;
 }
