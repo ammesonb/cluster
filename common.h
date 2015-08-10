@@ -1,8 +1,12 @@
 #ifndef CLUSTER_COMMON_H
 #define CLUSTER_COMMON_H
 
-#define   PRINTD(level, indent, d_str, args...) if (debug >= level) {PRINTD_INDENT_LEVEL = indent; printf("%sDEBUG%d: ", string(indent * 4, ' ').c_str(), level); printf(d_str, ##args); printf("\n");}
-#define   PRINTDI(level, d_str, args...) if (debug >= level) {printf("%sDEBUG%d: ", string(PRINTD_INDENT_LEVEL * 4, ' ').c_str(), level); printf(d_str, ##args); printf("\n");}
+#define   PRINTD(level, indent, d_str, args...) if (debug >= level) {\
+          PRINTD_INDENT_LEVEL = indent; printf("%sDEBUG%d: ", string(indent * 4, ' ').c_str(), level);\
+          printf(d_str, ##args); printf("\n");}
+#define   PRINTDI(level, d_str, args...) if (debug >= level) {\
+          printf("%sDEBUG%d: ", string(PRINTD_INDENT_LEVEL * 4, ' ').c_str(), level);\
+          printf(d_str, ##args); printf("\n");}
 #define   DIE(str, args...) fprintf(stderr, " FATAL: " str "\n", ##args); exit(1);
 #define   STRLITFIX(str) (char*)string(str).c_str()
 
@@ -26,7 +30,6 @@ namespace Cluster {
     extern const char *DBUS_HANDLER_PATH;
     extern const char *DBUS_HANDLER_NAME;
 
-
     extern int debug;
 
     bool is_ip(string s);
@@ -38,5 +41,8 @@ namespace Cluster {
     char* create_str(int length);
     unsigned long long get_cur_time();
     string read_file(char *name);
+    static inline std::string &ltrim(std::string &s);
+    static inline std::string &rtrim(std::string &s);
+    static inline std::string &trim(std::string &s);
 }
 #endif

@@ -23,6 +23,7 @@
 #include "common.h"
 #include "host.h"
 #include "service.h"
+#include "network.h"
 
  // Introspection for DBus/*{{{*/
  const char *introspec_xml =
@@ -53,6 +54,7 @@ namespace Cluster {
     int handler_pid;
     pthread_t dbus_dispatcher;
     DBusConnection *conn;
+    string ping_msg;
 
     // Config variables/*{{{*/
     cfg_t *cfg;
@@ -122,7 +124,7 @@ int main(int argc, char *argv[]) {
     cfg_parse(cfg, "cluster.conf");/*}}}*/
 
     PRINTD(1, 1, "Found debug level %d", debug);
-    PRINTD(3, 1, "Loading hosts");
+    PRINTD(3, 1, "Loading hosts");/*{{{*/
     string hosts = read_file(STRLITFIX("hosts"));
     start_split(hosts, "\n");
     string ho = get_split();
@@ -137,7 +139,7 @@ int main(int argc, char *argv[]) {
         host.id = host_num;
         string host_port = get_split();
         if (host_port.length() == 0) {DIE("Bad formatting for host on line %d, requires port", host_num);}
-        host.port = atoi(host_port.c_str());
+        host.port = stoi(host_port);
         PRINTD(4, 3, "Host is on port %d", host.port);
         bool dyn = false;
         if (is_ip(hostname)) {dyn = true; PRINTDI(3, "Host is dynamic");}
@@ -151,10 +153,9 @@ int main(int argc, char *argv[]) {
         ho = get_split();
         host_list[host_num] = host;
         host_num++;
-    }
+    }/*}}}*/
 
-
-    PRINTD(3, 1, "Loading services");
+    PRINTD(3, 1, "Loading services");/*{{{*/
     string services = read_file(STRLITFIX("services"));
     start_split(services, "\n");
     string serv = get_split();
@@ -168,15 +169,15 @@ int main(int argc, char *argv[]) {
         PRINTD(3, 2, "Parsing service %s", servname.c_str());
         string host1 = get_split();
         if (host1.length() == 0) {DIE("Bad formatting for service on line %d, requires at least one host", serv_num);}
-        PRINTD(5, 3, "Host %s is subscribed", host_list[atoi(host1.c_str())].address.c_str());
-        serv_hosts.push_back(host_list[atoi(host1.c_str())]);
+        PRINTD(5, 3, "Host %s is subscribed", host_list[stoi(host1)].address.c_str());
+        serv_hosts.push_back(host_list[stoi(host1)]);
         int hosts_found = 1;
         while (get_split_level() == 1) {
             string host = get_split();
             if (hosts_found == 1 && host.length() == 0) PRINTD(2, 3, "Service %s only has one host! Consider adding another for redundancy.", servname.c_str());
             if (host.length() == 0) break;
-            PRINTDI(5, "Host %s is subscribed", host_list[atoi(host.c_str())].address.c_str());
-            serv_hosts.push_back(host_list[atoi(host.c_str())]);
+            PRINTDI(5, "Host %s is subscribed", host_list[stoi(host)].address.c_str());
+            serv_hosts.push_back(host_list[stoi(host)]);
             hosts_found++;
         }
         PRINTD(4, 3, "Found %d hosts", hosts_found);
@@ -185,7 +186,7 @@ int main(int argc, char *argv[]) {
         service.hosts = serv_hosts;
         serv_list[serv_num] = service;
         serv_num++;
-    }
+    }/*}}}*/
 
     PRINTD(2, 0, "Initializing session");
 
@@ -203,17 +204,30 @@ int main(int argc, char *argv[]) {
     }
     dbus_error_free(&dberror);/*}}}*/
 
-    PRINTD(3, 1, "Determining my ID");
-    // Read in machine number and set ping message/*{{{*/
+    PRINTD(3, 1, "Determining my ID");/*{{{*/
+    // Read in machine number and set ping message
     string my_id = read_file(STRLITFIX("/var/opt/cluster/id"));
     PRINTDI(3, "My ID is %s", my_id.c_str());
-    string ping_msg;
     ping_msg.reserve(my_id.length() + 5);
     ping_msg.append(my_id).append("-ping");
+    if (ping_msg.length() < 6) {cerr <<  "Failed to parse id" << endl; exit(1);}/*}}}*/
 
-    if (ping_msg.length() < 6) {cerr <<  "Failed to parse id" << endl; exit(1);}
-    /*}}}*/
+    PRINTD(2, 0, "Starting networking services");
+    bool online = verify_connectivity();
+    if (online) {
+        PRINTD(3, 1, "I am online");
+    } else {
+        DIE("I am not online");
+    }
 
+    start_accept_thread();
+
+    PRINTD(3, 1, "Attempting to connect to all hosts");
+    for (auto it = host_list.begin(); it != host_list.end(); it++) {
+        Host h = (*it).second;
+        PRINTD(3, 2, "Connecting to host %s", h.address.c_str());
+        connect_to_host(h);
+    }
     
-   return 0;
+    return 0;
 }
