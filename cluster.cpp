@@ -146,10 +146,9 @@ int main(int argc, char *argv[]) {
         bool dyn = false;
         if (is_ip(hostname)) {dyn = true; PRINTDI(3, "Host is dynamic");}
         host.dynamic = dyn;
-        if (dyn) {
-            string host_pass = get_split();
-            if (host_pass.length() == 0) {DIE("Bad formatting for host on line %d, dynamic host requires password for validation", host_num);}
-        }
+        string host_pass = get_split();
+        if (host_pass.length() == 0) {DIE("Bad formatting for host on line %d, host requires password for validation", host_num);}
+        host.password = host_pass;
         if (get_split().length() != 0) {DIE("Bad formatting for host on line %d, extra data found", host_num);}
         end_split(1);
         ho = get_split();
@@ -206,6 +205,7 @@ int main(int argc, char *argv[]) {
     PRINTD(3, 1, "Determining my ID");/*{{{*/
     // Read in machine number and set ping message
     string my_id = read_file(STRLITFIX("/var/opt/cluster/id"));
+    int int_id = stoi(my_id);
     PRINTDI(3, "My ID is %s", my_id.c_str());
     ping_msg.reserve(my_id.length() + 5);
     ping_msg.append(my_id).append("-ping");
@@ -224,6 +224,7 @@ int main(int argc, char *argv[]) {
     PRINTD(3, 1, "Attempting to connect to all hosts");
     for (auto it = host_list.begin(); it != host_list.end(); it++) {
         Host h = (*it).second;
+        if (h.id == int_id) continue;
         PRINTD(3, 2, "Connecting to host %s", h.address.c_str());
         connect_to_host(h);
     }

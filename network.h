@@ -5,6 +5,9 @@
 
 namespace Cluster {
     bool verify_connectivity();
+
+    string srecv(int sock);
+
     void start_accept_thread(int port);
     void connect_to_host(Host h);
     void set_sock_opts(int fd);

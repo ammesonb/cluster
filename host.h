@@ -20,8 +20,9 @@ namespace Cluster {
             bool online = false;
             bool dynamic;
             vector<Service> services;
-        protected:
             string password;
+
+            bool validate(string fqdn, string pass, string ip);
     };
 }
 #endif
