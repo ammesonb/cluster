@@ -14,6 +14,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
+#include <algorithm>
 #include <string>
 #include <iostream>
 #include <vector>
@@ -110,6 +111,13 @@ namespace Cluster {
         pthread_create(&dbus_dispatcher, NULL, dbus_loop, NULL);
         return EXIT_SUCCESS;
     }/*}}}*/
+
+    void queue_keepalive() {/*{{{*/
+        for (auto it = hosts_online.begin(); it != hosts_online.end(); it++) {
+            Host h = *it;
+            send_message_queue[h.id].push_back(ping_msg);
+        }
+    }/*}}}*/
 }
 
 using namespace Cluster;
@@ -199,13 +207,34 @@ int main(int argc, char *argv[]) {
         connect_to_host(h);
     }
 
-    // TODO need some sort of main loop
-    // TODO Should start receive thread here
-    // TODO sender will be individual per connection, so dispatch keepalive messages
-    // to those senders here
+    pthread_t recv_thread;
+    pthread_create(&recv_thread, NULL, recv_loop, NULL);
+    // TODO check service status and see which services I should start
+
+    // TODO need termination condition
     // TODO check file time stamps to ensure no changes
-    // TODO mark hosts as offline if timed out
     // TODO update my host key here
+    int last_keepalive_update = 0;
+    int last_key_update = get_cur_time();
+    while (keep_running) {
+        for (auto it = hosts_online.begin(); it != hosts_online.end(); it++) {
+            Host h = *it;
+            if (get_cur_time() - h.last_msg > dead) {
+                PRINTD(2, 0, "Host %s is offline", h.address.c_str());
+                // TODO add an == operator to Host for this to work
+                hosts_online.erase(std::remove(hosts_online.begin(), hosts_online.end(), h), hosts_online.end());
+                // TODO start appropriate services
+            }
+        }
+
+        if (get_cur_time() - last_keepalive_update > interval) {
+            PRINTD(5, 0, "Sending keepalive");
+            last_keepalive_update = get_cur_time();
+            queue_keepalive();
+        }
+    }
+
+    PRINTD(1, 0, "Exiting main loop");
     
     return 0;
 }

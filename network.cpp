@@ -117,6 +117,24 @@ namespace Cluster {
         return NULL;
     }/*}}}*/
 
+    void *recv_loop(void *arg) {/*{{{*/
+        while (keep_running) {
+            sleep(interval / 2);
+            for (auto it = hosts_online.begin(); it != hosts_online.end(); it++) {
+                Host h = *it;
+                char *buf = create_str(1024);
+                if (recv(h.socket, buf, 1024, MSG_DONTWAIT) > 0) {
+                    h.last_msg = get_cur_time();
+                    if (strcmp(buf, std::to_string(h.id).append("-ping").c_str()) == 0) continue;
+                    // TODO handle other commands here
+                }
+                free(buf);
+            }
+        }
+        PRINTD(1, 0, "Receive thread is terminating");
+        return NULL;
+    }/*}}}*/
+
     void* accept_conn(void *arg) {/*{{{*/
         while (keep_running) {
             struct sockaddr_in client_addr;
@@ -150,6 +168,9 @@ namespace Cluster {
             hosts_online.push_back(h);
             pthread_t sender_thread;
             pthread_create(&sender_thread, NULL, sender_loop, &h);
+
+            // TODO check status of running services and see if I need to stop
+            // one or more of them
         }
 
         PRINTD(1, 0, "Accept thread is exiting");
