@@ -10,8 +10,8 @@ Features:
  *  Alerts on loss of connection on monitored host
 
 ## Status
-Cluster is currently in the beginning phases of development. There will
-be many bugs and missing features.
+Cluster is currently in the intermediate phase of development. There will
+be bugs and missing features.
 
 ## Installation
 Use the included Makefile. The following should suffice.
@@ -23,7 +23,7 @@ make install
 
 ## General information
 Cluster works by creating connections between various machines with
-static or dynamic addresses. It listens for connection on port 35790
+static or dynamic addresses. It listens for connection on a configurable port
 and handles system commands with DBus. It relies on libdbus2, libevent2,
 libconfuse, libcrypto, and pthread.
 
@@ -33,18 +33,20 @@ There are several configuration files which <b>MUST</b> be modified.
 ### hosts
 This is a list of hosts. The order is arbitrary, but important. The
 line number the host is on uniquely identifies that host. Each line
-should have exactly one of two format entries. The line will contain
-either an IP address/URL a host will be found at OR a name for the
-host, indicating the host's address is unknown and it will connect
-to the known hosts. In this case, a passphrase should be included,
-separated by a comma. A sample configuration file may look like:
+will contain an address for the device, though if it is dynamic and
+does not have a host name simply providing a unique name will be
+adequate. A passphrase must be included following the domain name/IP/identifier.
+This passphrase will be used as an AES-128-CBC key with which all traffic
+will be encrrypted. A sample configuration file consisting of two servers, an IP address,
+and an anonymous laptop could look like:
 ```
 server1.example.com password1
 server2.example.com password2
-laptop1,open password3
+130.215.130.222 password3
+laptop1 password4
 ```
 Note the initial passphrase must contain at least 8 characters.
-This will be updated automatically every hour.
+This will be updated automatically using OpenSSL RAND_bytes every hour.
 
 ### services
 The services file should be a newline-separated file of services
@@ -68,6 +70,8 @@ directories. Any files you wish to synchronize between hosts may be
 added here. Any files in the service directories will also by shared,
 though the start/stop scripts will *NOT* be included by default
 since different hosts may require different actions to start a service.
+However, you may explicitly add them in the files section of the main
+configuration.
 
 ## DBus Handlers
 Cluster will register several DBus handlers. These will perform actions
