@@ -25,7 +25,7 @@ make install
 Cluster works by creating connections between various machines with
 static or dynamic addresses. It listens for connection on port 35790
 and handles system commands with DBus. It relies on libdbus2, libevent2,
-and libconfuse.
+libconfuse, libcrypto, and pthread.
 
 ## Configuration files
 There are several configuration files which <b>MUST</b> be modified.
@@ -39,15 +39,16 @@ host, indicating the host's address is unknown and it will connect
 to the known hosts. In this case, a passphrase should be included,
 separated by a comma. A sample configuration file may look like:
 ```
-server1.example.com
-server2.example.com
-laptop1,open sesame
+server1.example.com password1
+server2.example.com password2
+laptop1,open password3
 ```
-Note the passphrase must contain at least 8 characters.
+Note the initial passphrase must contain at least 8 characters.
+This will be updated automatically every hour.
 
 ### services
-The services file should be a newline-separated file of SystemV
-init scripts. Each line will be in the format:
+The services file should be a newline-separated file of services
+that should be distributed. Each line will be in the format:
 ```
 <service name> <primary host> <secondary host> ....
 ```
@@ -55,17 +56,23 @@ where each host is the numerical ID given in the hosts file.
 Assuming the primary host is up, that is where the service will
 be started, otherwise it will fall through secondary all the way
 to the end of the line. If no hosts are up, the service will not
-run on any machine.
+run on any machine. A directory should be created for each service
+with a bash 'start' and 'stop' script, similar to the SystemV functions.
+Any other files may be specified there as well.
 
 ### cluster.conf
 This is the main configuration file. The options here include
 elapsed time before considering a host down, frequency of
-keepalive packets, log verbosity, etc.
+keepalive packets, log verbosity, etc. Of note is critical files and
+directories. Any files you wish to synchronize between hosts may be
+added here. Any files in the service directories will also by shared,
+though the start/stop scripts will *NOT* be included by default
+since different hosts may require different actions to start a service.
 
 ## DBus Handlers
-Cluster will register several DBus handlers. These will do things
-such as send configuration and program file updates, reload config
-files, and notify other hosts of status changes.
+Cluster will register several DBus handlers. These will perform actions
+such as sending configuration and program file updates, reloading config
+files, and notifying other hosts of status changes.
 
 ## Example connection behavior
 ```
