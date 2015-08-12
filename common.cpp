@@ -239,6 +239,17 @@ namespace Cluster {
         return out;
     }/*}}}*/
 
+    string hexlify(unsigned char *data, int len) {/*{{{*/
+        string out;
+        out.reserve(2 * len);
+        for (int i = 0; i < len; i++) {
+            const unsigned char c = data[i];
+            out.push_back(hex_alpha[c >> 4]);
+            out.push_back(hex_alpha[c & 0x0F]);
+        }
+        return out;
+    }/*}}}*/
+
     string unhexlify(string data) {/*{{{*/
         if (data.length() & 1) {PRINTD(1, 0, "Invalid length for unhexlify"); return string("");}
         string out;

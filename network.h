@@ -10,6 +10,9 @@ namespace Cluster {
 
     string srecv(int sock);
 
+    string enc_msg(string msg, string passwd);
+    string dec_msg(string msg, string passwd);
+
     void start_accept_thread(int port);
     void connect_to_host(Host h);
     void set_sock_opts(int fd);

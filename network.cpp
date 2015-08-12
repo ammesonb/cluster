@@ -5,6 +5,8 @@
 #include <unistd.h>
 #include <netinet/ip.h>
 #include <arpa/inet.h>
+#include <openssl/evp.h>
+#include <openssl/rand.h>
 
 #include "common.h"
 #include "network.h"
@@ -33,6 +35,64 @@ namespace Cluster {
         str.reserve(stoi(size));
         str.assign(data, stoi(size));
         return str;
+    }/*}}}*/
+
+    string enc_msg(string msg, string passwd) {/*{{{*/
+        // TODO what if msg is larger than this?
+        unsigned char outbuf[4096];
+        int outlen, secondlen;
+
+        unsigned char iv[32];
+        RAND_load_file("/dev/urandom", 128);
+        RAND_bytes(iv, 32);
+        EVP_CIPHER_CTX ctx;
+        EVP_CIPHER_CTX_init(&ctx);
+        EVP_EncryptInit_ex(&ctx, EVP_aes_128_cbc(), NULL, (const unsigned char*)passwd.c_str(), iv);
+        if (!EVP_EncryptUpdate(&ctx, outbuf, &outlen, (const unsigned char*)msg.c_str(), msg.length())) {
+            PRINTD(1, 0, "Encryption of message failed in EncryptUpdate");
+            return string("");
+        }
+
+        if (!EVP_EncryptFinal_ex(&ctx, outbuf + outlen, &secondlen)) {
+            PRINTD(1, 0, "Encryption of message failed in EncryptFinal");
+            return string("");
+        }
+        outlen += secondlen;
+        EVP_CIPHER_CTX_cleanup(&ctx);
+        PRINTDI(5, "Using IV %s", hexlify(iv, 32).c_str());
+        PRINTDI(5, "Data is %s", hexlify(outbuf, outlen).c_str());
+
+        return hexlify(iv, 32).append(hexlify(outbuf, outlen));
+    }/*}}}*/
+
+    string dec_msg(string msg, string passwd) {/*{{{*/
+        // TODO what is msg is larger than this?
+        unsigned char outbuf[4096];
+        int outlen, secondlen;
+
+        PRINTDI(5, "Found IV %s", msg.substr(0, 64).c_str());
+        PRINTDI(5, "Data is %s", msg.substr(64, msg.length() - 64).c_str());
+
+        string iv = unhexlify(msg.substr(0, 64));
+        string data = unhexlify(msg.substr(64, msg.length() - 64));
+
+        EVP_CIPHER_CTX ctx;
+        EVP_CIPHER_CTX_init(&ctx);
+        EVP_DecryptInit_ex(&ctx, EVP_aes_128_cbc(), NULL,
+                           (const unsigned char*)passwd.c_str(),
+                           (const unsigned char*)iv.c_str());
+        if (!EVP_DecryptUpdate(&ctx, outbuf, &outlen, (const unsigned char*)data.c_str(), data.length())) {
+            PRINTD(1, 0, "Decryption of message failed in DecryptUpdate");
+            return string("");
+        }
+
+        if (!EVP_DecryptFinal_ex(&ctx, outbuf + outlen, &secondlen)) {
+            PRINTD(1, 0, "Decryption of message failed in DecryptFinal");
+            return string("");
+        }
+        outlen += secondlen;
+        EVP_CIPHER_CTX_cleanup(&ctx);
+        return string((char*)outbuf, outlen);
     }/*}}}*/
 
     void* sender_loop(void *arg) {/*{{{*/

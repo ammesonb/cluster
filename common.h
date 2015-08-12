@@ -66,6 +66,7 @@ namespace Cluster {
     unsigned long long get_cur_time();
 
     string hexlify(string data);
+    string hexlify(unsigned char *data, int len);
     string unhexlify(string data);
     string hash_file(char *name);
     string read_file(char *name);

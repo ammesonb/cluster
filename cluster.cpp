@@ -167,6 +167,13 @@ int main(int argc, char *argv[]) {
     ping_msg.append(my_id).append("-ping");
     if (ping_msg.length() < 6) {cerr <<  "Failed to parse id" << endl; exit(1);}/*}}}*/
 
+    PRINTD(3, 0, "Performing crypto sanity check");
+    PRINTD(3, 1, "Plain: %s", ping_msg.c_str());
+    string out = enc_msg(ping_msg, string("password"));
+    PRINTD(3, 1, "Enc: %s", out.c_str());
+    string pt = dec_msg(out, string("password"));
+    PRINTD(3, 1, "Dec: %s", pt.c_str());
+
     PRINTD(2, 0, "Starting networking services");
     bool online = verify_connectivity();
     if (online) {
@@ -190,6 +197,7 @@ int main(int argc, char *argv[]) {
     // to those senders here
     // TODO check file time stamps to ensure no changes
     // TODO mark hosts as offline if timed out
+    // TODO update my host key here
     
     return 0;
 }
