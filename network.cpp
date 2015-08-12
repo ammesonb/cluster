@@ -55,14 +55,16 @@ namespace Cluster {
             string passwd = srecv(client_fd);
             string ip;
             ip.assign(addr);
-            //if (host_list.at(hostid).authenticate(hostname, passwd, ip)) {
-                //PRINTD(4, 0, "Host %s connection authenticated", hostname.c_str());
-            //} else {
-                //PRINTD(1, 0, "Host %s connection didn't authenticate!", hostname.c_str());
-                //continue;
-            //}
+            if (host_list.at(hostid).authenticate(hostname, passwd, ip)) {
+                PRINTD(4, 0, "Host %s connection authenticated", hostname.c_str());
+            } else {
+                PRINTD(1, 0, "Host %s connection didn't authenticate!", hostname.c_str());
+                continue;
+            }
 
-            // TODO update host status
+            Host h = host_list.at(hostid);
+            h.last_msg = get_cur_time();
+            hosts_online.push_back(h);
             // TODO spawn threads for checking keepalive status/validating commands
             // TODO or maybe have one master thread for all of them? That'd make more sense
         }

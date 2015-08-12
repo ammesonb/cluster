@@ -4,6 +4,8 @@
 #include "host.h"
 
 namespace Cluster {
+    extern vector<Host> hosts_online;
+
     bool verify_connectivity();
 
     string srecv(int sock);

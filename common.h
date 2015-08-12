@@ -43,6 +43,7 @@ namespace Cluster {
 
     extern map<int, Host> host_list;
     extern map<int, Service> serv_list;
+    extern vector<Host> hosts_online;
 
     extern bool keep_running;
     extern int debug;

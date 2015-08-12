@@ -66,6 +66,7 @@ namespace Cluster {
 
     map<int, Host> host_list;
     map<int, Service> serv_list;
+    vector<Host> hosts_online;
 
     DBUS_FUNC(dbus_handler) {/*{{{*/
         int handled = 0;
@@ -143,7 +144,6 @@ int main(int argc, char *argv[]) {
     load_service_config();/*}}}*/
 
     PRINTD(2, 0, "Initializing session");
-
     PRINTD(3, 1, "Opening DBus");
     // Open DBus connection/*{{{*/
     DBusError dberror;
@@ -185,8 +185,10 @@ int main(int argc, char *argv[]) {
     }
 
     // TODO need some sort of main loop
-    // TODO maybe have this as my keepalive loop?
+    // TODO sender will be individual per connection, so dispatch keepalive messages
+    // to those senders here
     // TODO check file time stamps to ensure no changes
+    // TODO mark hosts as offline if timed out
     
     return 0;
 }
