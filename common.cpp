@@ -112,6 +112,7 @@ namespace Cluster {
         start_split(services, "\n");
         string serv = get_split();
         int serv_num = 0;
+        map<int, vector<Service>> host_services;
         while (serv.length() > 0) {
             Service service;
             vector<Host> serv_hosts;
@@ -126,6 +127,8 @@ namespace Cluster {
                 string host = get_split();
                 if (host.length() == 0) break;
                 PRINTDI(5, "Host %s is subscribed", host_list[stoi(host)].address.c_str());
+                // TODO check that this is an object reference - otherwise any changes after this won't be in this object
+                host_services[stoi(host)].push_back(service);
                 serv_hosts.push_back(host_list[stoi(host)]);
                 hosts_found++;
             }
@@ -135,6 +138,12 @@ namespace Cluster {
             service.hosts = serv_hosts;
             serv_list[serv_num] = service;
             serv_num++;
+        }
+
+        PRINTD(5, 3, "Adding services to hosts");
+        for (auto it = host_services.begin(); it != host_services.end(); it++) {
+            vector<Service> s = (*it).second;
+            host_list[(*it).first].services = s;
         }
     } /*}}}*/
 
