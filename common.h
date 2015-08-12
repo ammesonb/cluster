@@ -45,6 +45,11 @@ namespace Cluster {
     extern bool keep_running;
     extern int debug;
 
+    bool validate_host_config();
+    void load_host_config();
+    bool validate_service_config();
+    void load_service_config();
+
     bool is_ip(string s);
 
     void start_split(string source, string delim);

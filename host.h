@@ -22,7 +22,7 @@ namespace Cluster {
             vector<Service> services;
             string password;
 
-            bool validate(string fqdn, string pass, string ip);
+            bool authenticate(string fqdn, string pass, string ip);
     };
 }
 #endif

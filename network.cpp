@@ -55,12 +55,12 @@ namespace Cluster {
             string passwd = srecv(client_fd);
             string ip;
             ip.assign(addr);
-            if (host_list.at(hostid).validate(hostname, passwd, ip)) {
-                PRINTD(4, 0, "Host %s connection validated", hostname.c_str());
-            } else {
-                PRINTD(1, 0, "Host %s connection didn't validate!", hostname.c_str());
-                continue;
-            }
+            //if (host_list.at(hostid).authenticate(hostname, passwd, ip)) {
+                //PRINTD(4, 0, "Host %s connection authenticated", hostname.c_str());
+            //} else {
+                //PRINTD(1, 0, "Host %s connection didn't authenticate!", hostname.c_str());
+                //continue;
+            //}
 
             // TODO update host status
             // TODO spawn threads for checking keepalive status/validating commands
