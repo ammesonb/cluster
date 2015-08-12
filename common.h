@@ -44,9 +44,11 @@ namespace Cluster {
     extern map<int, Host> host_list;
     extern map<int, Service> serv_list;
     extern vector<Host> hosts_online;
+    extern map<int, vector<string>> send_message_queue;
 
     extern bool keep_running;
     extern int debug;
+    extern int interval;
 
     bool validate_host_config();
     void load_host_config();

@@ -35,7 +35,27 @@ namespace Cluster {
         return str;
     }/*}}}*/
 
-    void* accept_thread() {
+    void* sender_loop(void *arg) {/*{{{*/
+        Host *host = (Host*)arg;
+        while (keep_running) {
+            sleep(interval / 2);
+            PRINTD(5, 0, "Checking message queue for %s", host->address.c_str());
+            for (auto it = send_message_queue[host->id].begin();
+                      it != send_message_queue[host->id].end(); it++) {
+                string msg = *it;
+                PRINTD(5, 1, "Sending %s to all hosts", msg.c_str());
+                for (auto it2 = hosts_online.begin(); it2 != hosts_online.end(); it2++) {
+                    Host h = *it2;
+                    // TODO Does this block?
+                    send(h.socket, msg.c_str(), msg.length(), 0);
+                }
+            }
+        }
+        PRINTD(1, 0, "Sender for host %s terminating", host->address.c_str());
+        return NULL;
+    }/*}}}*/
+
+    void* accept_conn(void *arg) {/*{{{*/
         while (keep_running) {
             struct sockaddr_in client_addr;
             int client_len = sizeof(client_addr);
@@ -55,25 +75,27 @@ namespace Cluster {
             string passwd = srecv(client_fd);
             string ip;
             ip.assign(addr);
-            if (host_list.at(hostid).authenticate(hostname, passwd, ip)) {
+
+            Host h = host_list.at(hostid);
+            if (h.authenticate(hostname, passwd, ip)) {
                 PRINTD(4, 0, "Host %s connection authenticated", hostname.c_str());
             } else {
                 PRINTD(1, 0, "Host %s connection didn't authenticate!", hostname.c_str());
                 continue;
             }
 
-            Host h = host_list.at(hostid);
+            h.socket = client_fd;
             h.last_msg = get_cur_time();
             hosts_online.push_back(h);
-            // TODO spawn threads for checking keepalive status/validating commands
-            // TODO or maybe have one master thread for all of them? That'd make more sense
+            pthread_t sender_thread;
+            pthread_create(&sender_thread, NULL, sender_loop, &h);
         }
 
         PRINTD(1, 0, "Accept thread is exiting");
         return NULL;
-    }
+    }/*}}}*/
 
-    void start_accept_thread(int port) {
+    void start_accept_thread(int port) {/*{{{*/
         PRINTDI(3, "Configuring connection accept socket");
         acceptfd = socket(AF_INET, SOCK_STREAM, 0);
         set_sock_opts(acceptfd);
@@ -91,9 +113,9 @@ namespace Cluster {
 
         if (listen(acceptfd, 10) < 0) {DIE("Failed to listen on accept socket");}
 
-        // TODO write accept function and start thread
-        // TODO need to set hosts/services variables as extern in common?
-    }
+        pthread_t accept_thread;
+        pthread_create(&accept_thread, NULL, accept_conn, NULL);
+    }/*}}}*/
 
     void connect_to_host(Host h) {
         // TODO write this

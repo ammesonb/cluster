@@ -67,6 +67,7 @@ namespace Cluster {
     map<int, Host> host_list;
     map<int, Service> serv_list;
     vector<Host> hosts_online;
+    map<int, vector<string>> send_message_queue;
 
     DBUS_FUNC(dbus_handler) {/*{{{*/
         int handled = 0;
