@@ -8,6 +8,7 @@
 #include <functional>
 #include <cctype>
 #include <locale>
+#include <openssl/evp.h>
 
 using std::vector;
 using std::string;
@@ -25,6 +26,8 @@ namespace Cluster {
     vector<int> string_split_offset;
     vector<string> string_split_source;
     vector<string> string_split_delim;
+
+    static const char *hex_alpha = "0123456789ABCDEF";
 
     bool validate_host_config() { /*{{{*/
         bool valid = true;
@@ -215,6 +218,48 @@ namespace Cluster {
         return cur;
     }/*}}}*/
 
+    string hexlify(string data) {/*{{{*/
+        int len = data.length();
+        string out;
+        out.reserve(2 * len);
+        for (int i = 0; i < len; i++) {
+            const unsigned char c = data[i];
+            out.push_back(hex_alpha[c >> 4]);
+            out.push_back(hex_alpha[c & 0x0F]);
+        }
+        return out;
+    }/*}}}*/
+
+    string unhexlify(string data) {/*{{{*/
+        if (data.length() & 1) {PRINTD(1, 0, "Invalid length for unhexlify"); return string("");}
+        string out;
+        out.reserve(data.length() / 2);
+        for (int i = 0; i < data.length(); i += 2) {
+            const char *p = std::lower_bound(hex_alpha, hex_alpha + 16, data[i]);
+            const char *q = std::lower_bound(hex_alpha, hex_alpha + 16, data[i + 1]);
+            out.push_back(((p - hex_alpha) << 4) | (q - hex_alpha));
+        }
+        return out;
+    }/*}}}*/
+
+    string hash_file(char *name) {/*{{{*/
+        string data = read_file(name);
+        EVP_MD_CTX *mdctx;
+        unsigned char *md_value = (unsigned char*)create_str(EVP_MAX_MD_SIZE);
+        unsigned int md_len;
+
+        OpenSSL_add_all_digests();
+        mdctx = EVP_MD_CTX_create();
+        EVP_DigestInit_ex(mdctx, EVP_sha256(), NULL);
+        EVP_DigestUpdate(mdctx, data.c_str(), data.length());
+        EVP_DigestFinal_ex(mdctx, md_value, &md_len);
+        EVP_MD_CTX_destroy(mdctx);
+        string hash;
+        hash.reserve(md_len);
+        hash.assign((char*)md_value);
+        return hexlify(hash);
+    }/*}}}*/
+
     string read_file(char *name) {/*{{{*/
         PRINTDI(5, "Attempting to read file %s", name);
         ifstream f(name);
@@ -224,7 +269,7 @@ namespace Cluster {
         f.seekg(0, std::ios::beg);
 
         str.assign((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
-        return trim(str);
+        return str;
     }/*}}}*/
 
     static inline std::string &ltrim(std::string &s) {/*{{{*/

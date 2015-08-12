@@ -56,9 +56,15 @@ namespace Cluster {
     int get_split_level();
     string get_split();
     void end_split(int level);
+
     char* create_str(int length);
     unsigned long long get_cur_time();
+
+    string hexlify(string data);
+    string unhexlify(string data);
+    string hash_file(char *name);
     string read_file(char *name);
+
     static inline std::string &ltrim(std::string &s);
     static inline std::string &rtrim(std::string &s);
     static inline std::string &trim(std::string &s);

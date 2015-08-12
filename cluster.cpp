@@ -111,7 +111,6 @@ int main(int argc, char *argv[]) {
     PRINTD(1, 0, "Loading config file");
     // Load configuration/*{{{*/
     cfg_opt_t config[] = {
-        CFG_SIMPLE_INT("port", &port),
         CFG_SIMPLE_INT("beat_interval", &interval),
         CFG_SIMPLE_INT("dead_time", &dead),
         CFG_SIMPLE_STR("email", &email),
@@ -123,16 +122,25 @@ int main(int argc, char *argv[]) {
     };
 
     cfg = cfg_init(config, 0);
-    cfg_parse(cfg, "cluster.conf");/*}}}*/
+    cfg_parse(cfg, "cluster.conf");
 
     PRINTD(1, 1, "Found debug level %d", debug);
+    PRINTD(3, 1, "Calculating hashes");
+    // TODO this should probably be made dynamic after parsing critical files/dirs
+    string main_conf_md = hash_file("cluster.conf");
+    PRINTD(4, 2, "Main configuration hash: %s", main_conf_md.c_str());
+    string host_conf_md = hash_file("hosts");
+    PRINTD(4, 2, "Host configuration hash: %s", host_conf_md.c_str());
+    string serv_conf_md = hash_file("services");
+    PRINTD(4, 2, "Service configuration hash: %s", serv_conf_md.c_str());
+    
     PRINTD(3, 1, "Loading hosts");
     if (!validate_host_config()) {DIE("Found invalid host configuration file!");}
     load_host_config(); 
 
     PRINTD(3, 1, "Loading services");
     if (!validate_service_config()) {DIE("Found invalid service configuration file!");}
-    load_service_config();
+    load_service_config();/*}}}*/
 
     PRINTD(2, 0, "Initializing session");
 
@@ -149,7 +157,7 @@ int main(int argc, char *argv[]) {
 
     PRINTD(3, 1, "Determining my ID");/*{{{*/
     // Read in machine number and set ping message
-    string my_id = read_file(STRLITFIX("/var/opt/cluster/id"));
+    string my_id = trim(read_file(STRLITFIX("/var/opt/cluster/id")));
     int int_id = stoi(my_id);
     PRINTDI(3, "My ID is %s", my_id.c_str());
     ping_msg.reserve(my_id.length() + 5);
