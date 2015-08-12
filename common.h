@@ -32,6 +32,7 @@ using std::map;
 using std::string;
 
 namespace Cluster {
+    extern string my_id;
     extern int int_id;
     extern int port;
     extern int PRINTD_INDENT_LEVEL;

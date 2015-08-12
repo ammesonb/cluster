@@ -4,6 +4,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <netinet/ip.h>
+#include <netdb.h>
 #include <arpa/inet.h>
 #include <openssl/evp.h>
 #include <openssl/rand.h>
@@ -137,8 +138,10 @@ namespace Cluster {
             Host h = host_list.at(hostid);
             if (h.authenticate(hostname, ip)) {
                 PRINTD(4, 0, "Host %d: %s connection authenticated", hostid, hostname.c_str());
+                send(client_fd, "auth", 4, 0);
             } else {
                 PRINTD(1, 0, "Host %d: %s connection didn't authenticate!", hostid, hostname.c_str());
+                send(client_fd, "noauth", 6, 0);
                 continue;
             }
 
@@ -175,11 +178,49 @@ namespace Cluster {
         pthread_create(&accept_thread, NULL, accept_conn, NULL);
     }/*}}}*/
 
-    void connect_to_host(Host h) {
-        // TODO write this
+    void connect_to_host(Host host) {/*{{{*/
         // TODO this won't work if two dynamic hosts are present in the config file
         // TODO maybe add a startup DDNS update command to ensure that dns addresses resolve properly?
-    }
+        struct addrinfo *h = (struct addrinfo*)malloc(sizeof(struct addrinfo) + 1);
+        struct addrinfo *res, *rp;
+        memset(h, '\0', sizeof(*h));
+        h->ai_family = AF_INET;
+        h->ai_socktype = SOCK_STREAM;
+        h->ai_protocol = 0;
+
+        if (getaddrinfo(host.address.c_str(), std::to_string(port).c_str(), h, &res)) {
+            PRINTD(1, 0, "Failed to get address info for %s", host.address.c_str());
+            return;
+        }
+
+        int sock;
+        for (rp = res; rp != NULL; rp = rp->ai_next) {
+            sock = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+            if (sock == -1) continue;
+            if (connect(sock, rp->ai_addr, rp->ai_addrlen) != -1)
+                break;
+        }
+        if (rp == NULL) {
+            PRINTD(1, 0, "Failed to connect to %s", host.address.c_str());
+            return;
+        }
+        set_sock_opts(sock);
+        free(h);
+        hosts_online.push_back(host);
+        host.socket = sock;
+        string msg = enc_msg(host_list[int_id].address, host.password);
+        string data;
+        data.reserve(my_id.length() + 2 + msg.length());
+        data.append(my_id).append("--").append(msg);
+        send(sock, data.c_str(), data.length(), 0);
+        char *buf = create_str(8);
+        recv(sock, buf, 8, 0);
+        if (strcmp(buf, "auth") == 0) {
+            PRINTDR(1, 1, "Successfully connected to %s", host.address.c_str());
+        } else {
+            PRINTD(1, 0, "Failed to authenticate with %s", host.address.c_str());
+        }
+    }/*}}}*/
 
     void set_sock_opts(int sockfd) { /*{{{*/
         int value = 1;

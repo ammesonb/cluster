@@ -54,7 +54,12 @@ namespace Cluster {
     int handler_pid;
     pthread_t dbus_dispatcher;
     DBusConnection *conn;
+
+    string my_id;
+    int int_id;
     string ping_msg;
+
+    int port;
 
     bool keep_running = true;
 
@@ -129,6 +134,7 @@ int main(int argc, char *argv[]) {
     PRINTD(1, 1, "Found debug level %d", debug);
     PRINTD(3, 1, "Calculating hashes");
     // TODO this should probably be made dynamic after parsing critical files/dirs
+    // TODO that would allow for checking of individual service directories/files
     string main_conf_md = hash_file("cluster.conf");
     PRINTD(4, 2, "Main configuration hash: %s", main_conf_md.c_str());
     string host_conf_md = hash_file("hosts");
@@ -173,6 +179,7 @@ int main(int argc, char *argv[]) {
     PRINTD(3, 1, "Enc: %s", out.c_str());
     string pt = dec_msg(out, string("password"));
     PRINTD(3, 1, "Dec: %s", pt.c_str());
+    if (pt != ping_msg) {PRINTD(1, 0, "AES encrypt/decrypt didn't return same value!");}
 
     PRINTD(2, 0, "Starting networking services");
     bool online = verify_connectivity();
@@ -193,6 +200,7 @@ int main(int argc, char *argv[]) {
     }
 
     // TODO need some sort of main loop
+    // TODO Should start receive thread here
     // TODO sender will be individual per connection, so dispatch keepalive messages
     // to those senders here
     // TODO check file time stamps to ensure no changes

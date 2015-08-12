@@ -14,7 +14,7 @@ namespace Cluster {
     string dec_msg(string msg, string passwd);
 
     void start_accept_thread(int port);
-    void connect_to_host(Host h);
+    void connect_to_host(Host host);
     void set_sock_opts(int fd);
 }
 #endif
