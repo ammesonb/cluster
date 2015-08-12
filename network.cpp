@@ -106,8 +106,9 @@ namespace Cluster {
                 PRINTD(5, 1, "Sending %s to all hosts", msg.c_str());
                 for (auto it2 = hosts_online.begin(); it2 != hosts_online.end(); it2++) {
                     Host h = *it2;
+                    string ctxt = enc_msg(msg, h.password);
                     // TODO Does this block?
-                    send(h.socket, msg.c_str(), msg.length(), 0);
+                    send(h.socket, ctxt.c_str(), ctxt.length(), 0);
                 }
             }
         }
@@ -127,20 +128,17 @@ namespace Cluster {
             start_split(hostdata, "--");
             int level = get_split_level();
             int hostid = stoi(get_split());
-            string hostname = get_split();
-            while (get_split_level() == level)
-                hostname.append(get_split());
-            PRINTD(3, 0, "Got host connection from ID %d: %s", hostid, hostname.c_str());
-            // TODO Blocking here again
-            string passwd = srecv(client_fd);
+            string hostname = dec_msg(get_split(), host_list.at(hostid).password);
+            end_split(level);
+            PRINTD(3, 0, "Got attempted host connection from ID %d: %s", hostid, hostname.c_str());
             string ip;
             ip.assign(addr);
 
             Host h = host_list.at(hostid);
-            if (h.authenticate(hostname, passwd, ip)) {
-                PRINTD(4, 0, "Host %s connection authenticated", hostname.c_str());
+            if (h.authenticate(hostname, ip)) {
+                PRINTD(4, 0, "Host %d: %s connection authenticated", hostid, hostname.c_str());
             } else {
-                PRINTD(1, 0, "Host %s connection didn't authenticate!", hostname.c_str());
+                PRINTD(1, 0, "Host %d: %s connection didn't authenticate!", hostid, hostname.c_str());
                 continue;
             }
 
@@ -179,6 +177,8 @@ namespace Cluster {
 
     void connect_to_host(Host h) {
         // TODO write this
+        // TODO this won't work if two dynamic hosts are present in the config file
+        // TODO maybe add a startup DDNS update command to ensure that dns addresses resolve properly?
     }
 
     void set_sock_opts(int sockfd) { /*{{{*/

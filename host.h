@@ -21,12 +21,11 @@ namespace Cluster {
             vector<Service> services;
             string password;
 
-            // TODO this function should use pass as an AES 128 key, so simply valid decryption
-            // proves authentication
+            // TODO since identifier is decrypted, check for empty string for failure case
             // TODO failed fqdn->ip mapping should only disallow config updates, if decryption works
             // still reasonably accurate
-                // TODO recheck fqdn->ip every 15 minutes if fail
-            bool authenticate(string fqdn, string pass, string ip);
+                // TODO recheck identifier->ip every 15 minutes if fail
+            bool authenticate(string identifier, string ip);
     };
 }
 #endif
