@@ -32,6 +32,8 @@ using std::map;
 using std::string;
 
 namespace Cluster {
+    extern int int_id;
+    extern int port;
     extern int PRINTD_INDENT_LEVEL;
     extern DBusConnection *conn;
     extern const char *DBUS_PATH;
@@ -64,9 +66,10 @@ namespace Cluster {
     string unhexlify(string data);
     string hash_file(char *name);
     string read_file(char *name);
+    time_t get_file_mtime(char *name);
 
-    static inline std::string &ltrim(std::string &s);
-    static inline std::string &rtrim(std::string &s);
-    static inline std::string &trim(std::string &s);
+    string ltrim(string s);
+    string rtrim(string s);
+    string trim(string s);
 }
 #endif

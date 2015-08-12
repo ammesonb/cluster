@@ -61,7 +61,7 @@ namespace Cluster {
     // Config variables/*{{{*/
     cfg_t *cfg;
     cfg_bool_t text = cfg_false;
-    int port, debug = 2, interval, dead;
+    int debug = 2, interval, dead;
     char *email = NULL, *crit_files = NULL, *crit_dirs = NULL;/*}}}*/
 
     map<int, Host> host_list;
@@ -157,8 +157,10 @@ int main(int argc, char *argv[]) {
 
     PRINTD(3, 1, "Determining my ID");/*{{{*/
     // Read in machine number and set ping message
-    string my_id = trim(read_file(STRLITFIX("/var/opt/cluster/id")));
+    string my_id = read_file(STRLITFIX("/var/opt/cluster/id"));
+    my_id.assign(trim(my_id));
     int int_id = stoi(my_id);
+    int port = host_list[int_id].port;
     PRINTDI(3, "My ID is %s", my_id.c_str());
     ping_msg.reserve(my_id.length() + 5);
     ping_msg.append(my_id).append("-ping");
@@ -184,8 +186,7 @@ int main(int argc, char *argv[]) {
 
     // TODO need some sort of main loop
     // TODO maybe have this as my keepalive loop?
-    // TODO work in a way to do the file updates - checksum in keepalive loop?
-    // TODO or file time stamps maybe?
+    // TODO check file time stamps to ensure no changes
     
     return 0;
 }
