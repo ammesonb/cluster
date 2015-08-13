@@ -269,9 +269,5 @@ namespace Cluster {
         if (setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, (char*)&timeout, sizeof(timeout)) == -1) {
             DIE("Failed to set option SNDTIMEO");
         }
-
-        int flags = fcntl(sockfd, F_GETFL);
-        flags |= O_NONBLOCK;
-        fcntl(sockfd, F_SETFL, flags);
     } /*}}}*/
 }

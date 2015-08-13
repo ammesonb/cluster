@@ -17,8 +17,10 @@
 #include <algorithm>
 #include <string>
 #include <iostream>
+#include <fstream>
 #include <vector>
 #include <map>
+#include <openssl/rand.h>
 
 #include "dbus_common.h"
 #include "common.h"
@@ -221,7 +223,6 @@ int main(int argc, char *argv[]) {
             Host h = *it;
             if (get_cur_time() - h.last_msg > dead) {
                 PRINTD(2, 0, "Host %s is offline", h.address.c_str());
-                // TODO add an == operator to Host for this to work
                 hosts_online.erase(std::remove(hosts_online.begin(), hosts_online.end(), h), hosts_online.end());
                 // TODO start appropriate services
             }
@@ -232,6 +233,30 @@ int main(int argc, char *argv[]) {
             last_keepalive_update = get_cur_time();
             queue_keepalive();
         }
+
+        int seconds = get_cur_time() % 3600;
+        if ((5 * 60 * int_id - 10) < seconds && seconds < (5 * 60 * int_id + 10) && (last_key_update - get_cur_time() > 1800)) {
+            PRINTD(2, 0, "Updating encryption key");
+            last_key_update = get_cur_time();
+            unsigned char *key = (unsigned char*)create_str(16);
+            RAND_load_file("/dev/urandom", 128);
+            RAND_bytes(key, 16);
+            string passwd = hexlify(key, 16);
+            host_list[int_id].password.assign(passwd);
+            string data = read_file("hosts");
+            int pos = data.find(host_list[int_id].address, 0);
+            pos += host_list[int_id].address.length() +
+                   std::to_string(host_list[int_id].port).length() + 2;
+            int endpos = data.find("\n", pos);
+            data.replace(pos, endpos - pos, passwd);
+            PRINTD(3, 0, "Updating hosts file");
+            std::ofstream f;
+            f.open("hosts");
+            f << data;
+            f.close();
+        }
+
+        sleep(100);
     }
 
     PRINTD(1, 0, "Exiting main loop");
