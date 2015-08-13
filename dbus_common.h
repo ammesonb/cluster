@@ -123,8 +123,6 @@ namespace Cluster {
     dbus_bool_t add_timeout(DBusTimeout*, void*);
     void remove_timeout(DBusTimeout*, void*);
     void toggle_timeout(DBusTimeout*, void*);
-    DBUS_FUNC(message_handler);
-    DBUS_FUNC(message_filter);
 
     extern int watches;
     extern int event_fds[];

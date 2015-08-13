@@ -103,6 +103,7 @@ namespace Cluster {
     void* dbus_loop(void* args) {/*{{{*/
         PRINTD(1, 0, "Entering main DBus loop");
         while (dbus_connection_read_write_dispatch(conn, -1));
+        PRINTD(1, 0, "Exiting main DBus loop");
         return NULL;
     }/*}}}*/
 
@@ -170,6 +171,7 @@ int main(int argc, char *argv[]) {
     if (!conn || conn == NULL) {
         DIE("Connection to D-BUS daemon failed: %s", dberror.message);
     }
+    init_dbus();
     dbus_error_free(&dberror);/*}}}*/
 
     PRINTD(3, 1, "Determining my ID");/*{{{*/
@@ -183,15 +185,15 @@ int main(int argc, char *argv[]) {
     ping_msg.append(my_id).append("-ping");
     if (ping_msg.length() < 6) {cerr <<  "Failed to parse id" << endl; exit(1);}/*}}}*/
 
-    PRINTD(3, 0, "Performing crypto sanity check");
+    PRINTD(3, 0, "Performing crypto sanity check");/*{{{*/
     PRINTD(3, 1, "Plain: %s", ping_msg.c_str());
     string out = enc_msg(ping_msg, string("password"));
     PRINTD(3, 1, "Enc: %s", out.c_str());
     string pt = dec_msg(out, string("password"));
     PRINTD(3, 1, "Dec: %s", pt.c_str());
-    if (pt != ping_msg) {PRINTD(1, 0, "AES encrypt/decrypt didn't return same value!");}
+    if (pt != ping_msg) {PRINTD(1, 0, "AES encrypt/decrypt didn't return same value!");}/*}}}*/
 
-    PRINTD(2, 0, "Starting networking services");
+    PRINTD(2, 0, "Starting networking services");/*{{{*/
     bool online = verify_connectivity();
     if (online) {
         PRINTD(3, 1, "I am online");
@@ -210,14 +212,15 @@ int main(int argc, char *argv[]) {
     }
 
     pthread_t recv_thread;
-    pthread_create(&recv_thread, NULL, recv_loop, NULL);
+    pthread_create(&recv_thread, NULL, recv_loop, NULL);/*}}}*/
+
     // TODO check service status and see which services I should start
 
     // TODO need termination condition
     // TODO check file time stamps to ensure no changes
     int last_keepalive_update = 0;
     int last_key_update = get_cur_time();
-    while (keep_running) {
+    while (keep_running) {/*{{{*/
         // Check that all hosts are actually online/*{{{*/
         for (auto it = hosts_online.begin(); it != hosts_online.end(); it++) {
             Host h = *it;
@@ -265,7 +268,7 @@ int main(int argc, char *argv[]) {
         }/*}}}*/
 
         sleep(interval / 2);
-    }
+    }/*}}}*/
 
     PRINTD(1, 0, "Exiting main loop");
     
