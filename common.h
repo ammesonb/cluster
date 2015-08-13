@@ -13,6 +13,11 @@
 #define   DIE(str, args...) fprintf(stderr, " FATAL: " str "\n", ##args); exit(1);
 #define   STRLITFIX(str) (char*)string(str).c_str()
 
+#define DBUS_PATH "/com/bammeson/cluster"
+#define DBUS_NAME "com.bammeson.cluster"
+#define DBUS_HANDLER_PATH "/com/bammeson/clusterhandler"
+#define DBUS_HANDLER_NAME "com.bammeson.clusterhandler"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -37,15 +42,13 @@ namespace Cluster {
     extern int port;
     extern int PRINTD_INDENT_LEVEL;
     extern DBusConnection *conn;
-    extern const char *DBUS_PATH;
-    extern const char *DBUS_NAME;
-    extern const char *DBUS_HANDLER_PATH;
-    extern const char *DBUS_HANDLER_NAME;
 
     extern map<int, Host> host_list;
     extern map<int, Service> serv_list;
     extern vector<Host> hosts_online;
+    extern vector<string> sync_files;
     extern map<int, vector<string>> send_message_queue;
+    extern map<string, string> sync_checksums;
 
     extern bool keep_running;
     extern int debug;
@@ -58,8 +61,11 @@ namespace Cluster {
 
     bool is_ip(string s);
 
+    vector<string> get_directory_files(char *dir);
+
     void start_split(string source, string delim);
     int get_split_level();
+    void set_split_level(int l);
     string get_split();
     void end_split(int level);
 

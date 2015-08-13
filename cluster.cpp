@@ -53,7 +53,7 @@ using std::cout;
 using std::cerr;
 using std::endl;
 
-namespace Cluster {
+namespace Cluster {/*{{{*/
     int handler_pid;
     pthread_t dbus_dispatcher;
     DBusConnection *conn;
@@ -75,7 +75,9 @@ namespace Cluster {
     map<int, Host> host_list;
     map<int, Service> serv_list;
     vector<Host> hosts_online;
+    vector<string> sync_files;
     map<int, vector<string>> send_message_queue;
+    map<string, string> sync_checksums;
 
     DBUS_FUNC(dbus_handler) {/*{{{*/
         int handled = 0;
@@ -108,7 +110,7 @@ namespace Cluster {
     }/*}}}*/
 
     int init_dbus() {/*{{{*/
-        PRINTD(2, 0, "Initializing DBus");
+        PRINTD(2, 0, "Initializing DBus on %s", DBUS_PATH);
         DBUS_INIT(DBUS_NAME, DBUS_PATH, dbus_handler)
         PRINTD(2, 1, "Dispatching DBus thread");
         pthread_create(&dbus_dispatcher, NULL, dbus_loop, NULL);
@@ -121,13 +123,13 @@ namespace Cluster {
             send_message_queue[h.id].push_back(ping_msg);
         }
     }/*}}}*/
-}
+}/*}}}*/
 
 using namespace Cluster;
 
 int main(int argc, char *argv[]) {
     PRINTD(1, 0, "Loading config file");
-    // Load configuration/*{{{*/
+    // Load configuration /*{{{*/
     cfg_opt_t config[] = {
         CFG_SIMPLE_INT("beat_interval", &interval),
         CFG_SIMPLE_INT("dead_time", &dead),
@@ -141,25 +143,53 @@ int main(int argc, char *argv[]) {
 
     cfg = cfg_init(config, 0);
     cfg_parse(cfg, "cluster.conf");
+    // For some reason this variable is corrupted in cfg_parse, specifically
+    // set to 0 in cfg_set_opt, so need to restore it to avoid attempting to
+    // check a nonexistent level 0 split, causing a segfault
+    set_split_level(-1);
 
     PRINTD(1, 1, "Found debug level %d", debug);
-    PRINTD(3, 1, "Calculating hashes");
-    // TODO this should probably be made dynamic after parsing critical files/dirs
-    // TODO that would allow for checking of individual service directories/files
-    string main_conf_md = hash_file("cluster.conf");
-    PRINTD(4, 2, "Main configuration hash: %s", main_conf_md.c_str());
-    string host_conf_md = hash_file("hosts");
-    PRINTD(4, 2, "Host configuration hash: %s", host_conf_md.c_str());
-    string serv_conf_md = hash_file("services");
-    PRINTD(4, 2, "Service configuration hash: %s", serv_conf_md.c_str());
-    
+
     PRINTD(3, 1, "Loading hosts");
     if (!validate_host_config()) {DIE("Found invalid host configuration file!");}
     load_host_config(); 
 
     PRINTD(3, 1, "Loading services");
     if (!validate_service_config()) {DIE("Found invalid service configuration file!");}
-    load_service_config();/*}}}*/
+    load_service_config(); /*}}}*/
+
+    PRINTD(3, 1, "Creating list of synchronized files");/*{{{*/
+    string c_files = trim(string(crit_files));
+    start_split(c_files, "\n");
+    string file = trim(get_split());
+    while (file.length() != 0) {
+        sync_files.push_back(file);
+        file = trim(get_split());
+    }
+    end_split(0);
+
+    string c_dirs = string(crit_dirs);
+    start_split(c_dirs, ",");
+    string dir = trim(get_split());
+    while (dir.length() != 0) {
+        vector<string> f = get_directory_files((char*)dir.c_str());
+        sync_files.insert(sync_files.end(), f.begin(), f.end());
+        dir = trim(get_split());
+    }
+
+    for (auto it = serv_list.begin(); it != serv_list.end(); it++) {
+        Service s = (*it).second;
+        string dir = string("/home/brett/Programming/cluster/").append(s.name).append("/");
+        vector<string> f = get_directory_files((char*)dir.c_str());
+        sync_files.insert(sync_files.end(), f.begin(), f.end());
+    }/*}}}*/
+
+    PRINTD(3, 1, "Calculating hashes");/*{{{*/
+    for (auto it = sync_files.begin(); it != sync_files.end(); it++) {
+        string name = (string)*it;
+        sync_checksums[name] = hash_file((char*)name.c_str());
+        PRINTD(5, 1, "Sync'ed file %s has checksum\n                %s", name.c_str(), sync_checksums[name].c_str());
+    }/*}}}*/
 
     PRINTD(2, 0, "Initializing session");
     PRINTD(3, 1, "Opening DBus");

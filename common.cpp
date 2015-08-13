@@ -9,6 +9,7 @@
 #include <cctype>
 #include <locale>
 #include <openssl/evp.h>
+#include <dirent.h>
 
 using std::vector;
 using std::string;
@@ -16,10 +17,6 @@ using std::ifstream;
 
 namespace Cluster {
     int PRINTD_INDENT_LEVEL = 0;
-    const char *DBUS_PATH = "/com/bammeson/cluster";
-    const char *DBUS_NAME = "com.bammeson.cluster";
-    const char *DBUS_HANDLER_PATH = "/com/bammeson/clusterhandler";
-    const char *DBUS_HANDLER_NAME = "com.bammeson.clusterhandler";
 
     int string_split_level = -1;
     vector<int> last_string_split_offset;
@@ -118,11 +115,11 @@ namespace Cluster {
             vector<Host> serv_hosts;
             start_split(serv, " ");
             string servname = get_split();
+            service.name = servname;
             PRINTD(3, 2, "Parsing service %s", servname.c_str());
             string host1 = get_split();
             PRINTD(5, 3, "Host %s is subscribed", host_list[stoi(host1)].address.c_str());
             serv_hosts.push_back(host_list[stoi(host1)]);
-            int hosts_found = 1;
             while (get_split_level() == 1) {
                 string host = get_split();
                 if (host.length() == 0) break;
@@ -130,9 +127,8 @@ namespace Cluster {
                 // TODO check that this is an object reference - otherwise any changes after this won't be in this object
                 host_services[stoi(host)].push_back(service);
                 serv_hosts.push_back(host_list[stoi(host)]);
-                hosts_found++;
             }
-            PRINTD(4, 3, "Found %d hosts", hosts_found);
+            PRINTD(4, 3, "Found %d hosts", serv_hosts.size());
             end_split(1);
             serv = get_split();
             service.hosts = serv_hosts;
@@ -162,6 +158,33 @@ namespace Cluster {
         return ip;
     }/*}}}*/
 
+    vector<string> get_directory_files(char *dir) {/*{{{*/
+        PRINTDI(5, "Getting directory list for %s", dir);
+        vector<string> files;
+
+        DIR *d;
+        struct dirent *ent;
+        if ((d = opendir(dir)) != NULL) {
+            while ((ent = readdir(d)) != NULL) {
+                if (ent->d_type == DT_DIR) {
+                    if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) continue;
+                    PRINTDR(5, 1, "Found directory %s", ent->d_name);
+                    vector<string> sub_files = get_directory_files(ent->d_name);
+                    files.insert(files.end(), sub_files.begin(), sub_files.end());
+                    continue;
+                }
+                if (strcmp(ent->d_name, "start") == 0 || strcmp(ent->d_name, "stop") == 0) continue;
+                PRINTDR(5, 1, "Found file %s", ent->d_name);
+                files.push_back(string(dir).append(string(ent->d_name)));
+            }
+        } else {
+            PRINTDI(1, "Failed to list directory %s", dir);
+        }
+        closedir(d);
+        PRINTDI(5, "Directory %s had %d files", dir, files.size());
+        return files;
+    }/*}}}*/
+
     // String split getters/*{{{*/
     string sp_getsrc() {
         return string_split_source[string_split_level];
@@ -181,6 +204,10 @@ namespace Cluster {
 
     int get_split_level() {/*{{{*/
         return string_split_level;
+    }/*}}}*/
+
+    void set_split_level(int l) {/*{{{*/
+        string_split_level = l;
     }/*}}}*/
 
     void start_split(string s, string d) {/*{{{*/
@@ -289,6 +316,7 @@ namespace Cluster {
         f.seekg(0, std::ios::beg);
 
         str.assign((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+        PRINTDI(5, "Read %d bytes", str.length());
         return str;
     }/*}}}*/
 
