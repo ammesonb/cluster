@@ -154,7 +154,7 @@ namespace Cluster {
             ip.assign(addr);
 
             Host h = host_list.at(hostid);
-            if (h.authenticate(hostname, ip)) {
+            if (h.authenticate(hostid, hostname, ip)) {
                 PRINTD(4, 0, "Host %d: %s connection authenticated", hostid, hostname.c_str());
                 send(client_fd, "auth", 4, 0);
             } else {
@@ -210,7 +210,7 @@ namespace Cluster {
         h->ai_protocol = 0;
 
         if (getaddrinfo(host.address.c_str(), std::to_string(port).c_str(), h, &res)) {
-            PRINTD(1, 0, "Failed to get address info for %s", host.address.c_str());
+            PRINTDI(1, "Failed to get address info for %s", host.address.c_str());
             return;
         }
 
@@ -258,16 +258,6 @@ namespace Cluster {
         so_linger.l_linger = 0;
         if (setsockopt(sockfd, SOL_SOCKET, SO_LINGER, &so_linger, sizeof(so_linger)) == -1) {
             DIE("Failed to set option LINGER");
-        }
-
-        struct timeval timeout;
-        timeout.tv_sec = 2;
-        timeout.tv_usec = 0;
-        if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, sizeof(timeout)) == -1) {
-            DIE("Failed to set option RCVTIMEO");
-        }
-        if (setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, (char*)&timeout, sizeof(timeout)) == -1) {
-            DIE("Failed to set option SNDTIMEO");
         }
     } /*}}}*/
 }

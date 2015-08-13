@@ -215,27 +215,35 @@ int main(int argc, char *argv[]) {
 
     // TODO need termination condition
     // TODO check file time stamps to ensure no changes
-    // TODO update my host key here
     int last_keepalive_update = 0;
     int last_key_update = get_cur_time();
     while (keep_running) {
+        // Check that all hosts are actually online/*{{{*/
         for (auto it = hosts_online.begin(); it != hosts_online.end(); it++) {
             Host h = *it;
             if (get_cur_time() - h.last_msg > dead) {
+                if (!verify_connectivity()) {
+                    PRINTD(1, 0, "I am offline!");
+                    // TODO do something here
+                    break;
+                }
                 PRINTD(2, 0, "Host %s is offline", h.address.c_str());
                 hosts_online.erase(std::remove(hosts_online.begin(), hosts_online.end(), h), hosts_online.end());
                 // TODO start appropriate services
             }
-        }
+        }/*}}}*/
 
+        // Check keepalive timer/*{{{*/
         if (get_cur_time() - last_keepalive_update > interval) {
             PRINTD(5, 0, "Sending keepalive");
             last_keepalive_update = get_cur_time();
             queue_keepalive();
-        }
+        }/*}}}*/
 
+        // Check key update interval/*{{{*/
+        // Should be once an hour at 3 minute intervals based off of integer ID for host
         int seconds = get_cur_time() % 3600;
-        if ((5 * 60 * int_id - 10) < seconds && seconds < (5 * 60 * int_id + 10) && (last_key_update - get_cur_time() > 1800)) {
+        if ((3 * 60 * int_id - 10) < seconds && seconds < (3 * 60 * int_id + 10) && (last_key_update - get_cur_time() > 1800)) {
             PRINTD(2, 0, "Updating encryption key");
             last_key_update = get_cur_time();
             unsigned char *key = (unsigned char*)create_str(16);
@@ -254,9 +262,9 @@ int main(int argc, char *argv[]) {
             f.open("hosts");
             f << data;
             f.close();
-        }
+        }/*}}}*/
 
-        sleep(100);
+        sleep(interval / 2);
     }
 
     PRINTD(1, 0, "Exiting main loop");

@@ -25,7 +25,7 @@ namespace Cluster {
             // TODO failed fqdn->ip mapping should only disallow config updates, if decryption works
             // still reasonably accurate
                 // TODO recheck identifier->ip every 15 minutes if fail
-            bool authenticate(string identifier, string ip);
+            bool authenticate(int id, string identifier, string ip);
 
             bool operator==(const Host &other) {
                 return this->address == other.address && this->port == other.port
