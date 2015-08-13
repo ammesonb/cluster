@@ -13,9 +13,12 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <netdb.h>
+
 #include <algorithm>
 #include <string>
+#include <ctime>
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -128,7 +131,9 @@ namespace Cluster {/*{{{*/
 
 using namespace Cluster;
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[]) {/*{{{*/
+    struct timeval init_start_tv, init_end_tv;
+    gettimeofday(&init_start_tv, NULL);
     PRINTD(1, 0, "Loading config file");
     // Load configuration /*{{{*/
     cfg_opt_t config[] = {
@@ -245,14 +250,29 @@ int main(int argc, char *argv[]) {
         connect_to_host(h);
     }
 
+    PRINTD(3, 1, "Creating receive thread");
     pthread_t recv_thread;
     pthread_create(&recv_thread, NULL, recv_loop, NULL);/*}}}*/
+
+    gettimeofday(&init_end_tv, NULL);
+
+    unsigned long long diff = init_end_tv.tv_usec;
+    diff /= 1000;
+    diff += (init_end_tv.tv_sec * 1000);
+
+    unsigned long long diff2 = init_start_tv.tv_usec;
+    diff2 /= 1000;
+    diff2 += (init_start_tv.tv_sec * 1000);
+
+    diff -= diff2;
+    PRINTD(3, 0, "Initialization took %llu milliseconds", diff);
 
     // TODO check service status and see which services I should start
 
     // TODO need termination condition
     int last_keepalive_update = 0;
     int last_key_update = get_cur_time();
+    PRINTD(1, 0, "Entering service loop");
     while (keep_running) {/*{{{*/
         // Check that all hosts are actually online/*{{{*/
         for (auto it = hosts_online.begin(); it != hosts_online.end(); it++) {
@@ -302,6 +322,7 @@ int main(int argc, char *argv[]) {
 
         // Check file timestamps /*{{{*/
         for (auto it = sync_files.begin(); it != sync_files.end(); it++) {
+            string name = *it;
             if (get_file_mtime((char*)name.c_str()) != sync_timestamps[name]) {
                 // TODO push updated file
             }
@@ -313,4 +334,4 @@ int main(int argc, char *argv[]) {
     PRINTD(1, 0, "Exiting main loop");
     
     return 0;
-}
+}/*}}}*/

@@ -141,6 +141,8 @@ namespace Cluster {
             struct sockaddr_in client_addr;
             int client_fd = accept(acceptfd, (struct sockaddr*)&client_addr, (socklen_t*)&client_len);
             char* addr = inet_ntoa(client_addr.sin_addr);
+            // If s_addr is 0 then no connection was actually attempted and the call simply timed out
+            if (client_addr.sin_addr.s_addr == 0) continue;
             if (client_fd < 0) {PRINTD(1, 0, "Failed to accept a connection from %s", addr); continue;}
             // TODO will this block?
             char *data = create_str(1024);
@@ -216,7 +218,7 @@ namespace Cluster {
         h->ai_protocol = 0;
 
         if (getaddrinfo(host.address.c_str(), std::to_string(port).c_str(), h, &res)) {
-            PRINTDI(1, "Failed to get address info for %s", host.address.c_str());
+            PRINTDR(1, 1, "Failed to get address info for %s", host.address.c_str());
             return;
         }
 

@@ -124,8 +124,6 @@ namespace Cluster {
                 string host = get_split();
                 if (host.length() == 0) break;
                 PRINTDI(5, "Host %s is subscribed", host_list[stoi(host)].address.c_str());
-                // TODO check that this is an object reference - otherwise any changes after this won't be in this object
-                host_services[stoi(host)].push_back(service);
                 serv_hosts.push_back(host_list[stoi(host)]);
             }
             PRINTD(4, 3, "Found %d hosts", serv_hosts.size());
@@ -133,6 +131,8 @@ namespace Cluster {
             serv = get_split();
             service.hosts = serv_hosts;
             serv_list[serv_num] = service;
+            for (auto it = serv_hosts.begin(); it != serv_hosts.end(); it++)
+                host_services[(*it).id].push_back(service);
             serv_num++;
         }
 
