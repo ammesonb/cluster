@@ -49,6 +49,7 @@ namespace Cluster {
     extern vector<string> sync_files;
     extern map<int, vector<string>> send_message_queue;
     extern map<string, string> sync_checksums;
+    extern map<string, time_t> sync_timestamps;
 
     extern bool keep_running;
     extern int debug;

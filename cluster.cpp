@@ -78,6 +78,7 @@ namespace Cluster {/*{{{*/
     vector<string> sync_files;
     map<int, vector<string>> send_message_queue;
     map<string, string> sync_checksums;
+    map<string, time_t> sync_timestamps;
 
     DBUS_FUNC(dbus_handler) {/*{{{*/
         int handled = 0;
@@ -184,11 +185,14 @@ int main(int argc, char *argv[]) {
         sync_files.insert(sync_files.end(), f.begin(), f.end());
     }/*}}}*/
 
-    PRINTD(3, 1, "Calculating hashes");/*{{{*/
+    PRINTD(3, 1, "Getting sync'ed file data");/*{{{*/
     for (auto it = sync_files.begin(); it != sync_files.end(); it++) {
         string name = (string)*it;
         sync_checksums[name] = hash_file((char*)name.c_str());
-        PRINTD(5, 1, "Sync'ed file %s has checksum\n                %s", name.c_str(), sync_checksums[name].c_str());
+        sync_timestamps[name] = get_file_mtime((char*)name.c_str());
+        PRINTD(4, 1, "    Sync file: %s", name.c_str());
+        PRINTD(4, 1, "     Checksum: %s", sync_checksums[name].c_str());
+        PRINTD(4, 1, "Last modified: %d", sync_timestamps[name]);
     }/*}}}*/
 
     PRINTD(2, 0, "Initializing session");
@@ -247,7 +251,6 @@ int main(int argc, char *argv[]) {
     // TODO check service status and see which services I should start
 
     // TODO need termination condition
-    // TODO check file time stamps to ensure no changes
     int last_keepalive_update = 0;
     int last_key_update = get_cur_time();
     while (keep_running) {/*{{{*/
@@ -295,6 +298,13 @@ int main(int argc, char *argv[]) {
             f.open("hosts");
             f << data;
             f.close();
+        }/*}}}*/
+
+        // Check file timestamps /*{{{*/
+        for (auto it = sync_files.begin(); it != sync_files.end(); it++) {
+            if (get_file_mtime((char*)name.c_str()) != sync_timestamps[name]) {
+                // TODO push updated file
+            }
         }/*}}}*/
 
         sleep(interval / 2);
