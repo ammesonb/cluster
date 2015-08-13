@@ -136,14 +136,20 @@ namespace Cluster {
     }/*}}}*/
 
     void* accept_conn(void *arg) {/*{{{*/
+        int client_len = sizeof(struct sockaddr_in);
         while (keep_running) {
             struct sockaddr_in client_addr;
-            int client_len = sizeof(client_addr);
             int client_fd = accept(acceptfd, (struct sockaddr*)&client_addr, (socklen_t*)&client_len);
             char* addr = inet_ntoa(client_addr.sin_addr);
             if (client_fd < 0) {PRINTD(1, 0, "Failed to accept a connection from %s", addr); continue;}
             // TODO will this block?
-            string hostdata = srecv(client_fd);
+            char *data = create_str(1024);
+            string hostdata;
+            int read = recv(client_fd, data, 1024, 0);
+            if (read <= 0) {PRINTD(1, 0, "Received no data from connection with %s, aborting", addr); continue;}
+            hostdata.reserve(read);
+            hostdata.append(data);
+            free(data);
             start_split(hostdata, "--");
             int level = get_split_level();
             int hostid = stoi(get_split());
@@ -259,5 +265,16 @@ namespace Cluster {
         if (setsockopt(sockfd, SOL_SOCKET, SO_LINGER, &so_linger, sizeof(so_linger)) == -1) {
             DIE("Failed to set option LINGER");
         }
+
+        struct timeval timeout;
+        timeout.tv_sec = 5;
+        timeout.tv_usec = 0;
+        if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, sizeof(timeout)) == -1) {
+            DIE("Failed to set option RCVTIMEO");
+        }
+        if (setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, (char*)&timeout, sizeof(timeout)) == -1) {
+            DIE("Failed to set option SNDTIMEO");
+        }
+
     } /*}}}*/
 }
