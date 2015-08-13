@@ -111,6 +111,7 @@ namespace Cluster {
         int serv_num = 0;
         map<int, vector<Service>> host_services;
         while (serv.length() > 0) {
+            // Get service details
             Service service;
             vector<Host> serv_hosts;
             start_split(serv, " ");
@@ -120,6 +121,7 @@ namespace Cluster {
             string host1 = get_split();
             PRINTD(5, 3, "Host %s is subscribed", host_list[stoi(host1)].address.c_str());
             serv_hosts.push_back(host_list[stoi(host1)]);
+            // For each host registered with the service
             while (get_split_level() == 1) {
                 string host = get_split();
                 if (host.length() == 0) break;
@@ -131,15 +133,17 @@ namespace Cluster {
             serv = get_split();
             service.hosts = serv_hosts;
             serv_list[serv_num] = service;
+            // For each host this service has registered
+            // Add this service to its list of services
             for (auto it = serv_hosts.begin(); it != serv_hosts.end(); it++)
                 host_services[(*it).id].push_back(service);
             serv_num++;
         }
 
+        // Once all services are parsed, attribute services to hosts
         PRINTD(5, 3, "Adding services to hosts");
         for (auto it = host_services.begin(); it != host_services.end(); it++) {
-            vector<Service> s = (*it).second;
-            host_list[(*it).first].services = s;
+            host_list[(*it).first].services = (*it).second;
         }
     } /*}}}*/
 
