@@ -223,8 +223,16 @@ namespace Cluster {
         }
 
         int sock;
+        struct timeval to;
+        // Timeout after 5 seconds
+        to.tv_sec = 5;
+        to.tv_usec = 0;
         for (rp = res; rp != NULL; rp = rp->ai_next) {
             sock = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+            if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (char*)&to, sizeof(to)) < 0)
+                PRINTD(1, 0, "Failed to set receive timeout in connect");
+            if (setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (char*)&to, sizeof(to)) < 0)
+                PRINTD(1, 0, "Failed to set send timeout in connect");
             if (sock == -1) continue;
             if (connect(sock, rp->ai_addr, rp->ai_addrlen) != -1)
                 break;

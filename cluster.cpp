@@ -300,7 +300,12 @@ int main(int argc, char *argv[]) {/*{{{*/
         // Should be once an hour at 3 minute intervals based off of integer ID for host
         int seconds = get_cur_time() % 3600;
         if ((3 * 60 * int_id - 10) < seconds && seconds < (3 * 60 * int_id + 10) && (last_key_update - get_cur_time() > 1800)) {
-            PRINTD(2, 0, "Updating encryption key");
+            time_t now = time(0);
+            struct tm *tmn = localtime(&now);
+            char *buf = create_str(100);
+            strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", tmn);
+            PRINTD(2, 0, "Updating encryption key at %s", buf);
+            free(buf);
             last_key_update = get_cur_time();
             unsigned char *key = (unsigned char*)create_str(16);
             RAND_load_file("/dev/urandom", 128);
@@ -324,6 +329,8 @@ int main(int argc, char *argv[]) {/*{{{*/
         for (auto it = sync_files.begin(); it != sync_files.end(); it++) {
             string name = *it;
             if (get_file_mtime((char*)name.c_str()) != sync_timestamps[name]) {
+                PRINTD(3, 0, "Detected change in file %s", name.c_str());
+                sync_timestamps[name] = get_file_mtime((char*)name.c_str());
                 // TODO push updated file
             }
         }/*}}}*/
