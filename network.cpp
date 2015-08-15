@@ -139,12 +139,13 @@ namespace Cluster {
         int client_len = sizeof(struct sockaddr_in);
         while (keep_running) {
             struct sockaddr_in client_addr;
+            // Ensure address is zero, since struct is re-used each loop
+            client_addr.sin_addr.s_addr = 0;
             int client_fd = accept(acceptfd, (struct sockaddr*)&client_addr, (socklen_t*)&client_len);
             char* addr = inet_ntoa(client_addr.sin_addr);
             // If s_addr is 0 then no connection was actually attempted and the call simply timed out
             if (client_addr.sin_addr.s_addr == 0) continue;
             if (client_fd < 0) {PRINTD(1, 0, "Failed to accept a connection from %s", addr); continue;}
-            // TODO will this block?
             char *data = create_str(1024);
             string hostdata;
             int read = recv(client_fd, data, 1024, 0);
