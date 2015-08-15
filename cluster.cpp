@@ -199,7 +199,7 @@ int main(int argc, char *argv[]) {/*{{{*/
         sync_timestamps[name] = get_file_mtime((char*)name.c_str());
         PRINTD(4, 1, "    Sync file: %s", name.c_str());
         PRINTD(4, 1, "     Checksum: %s", sync_checksums[name].c_str());
-        PRINTD(4, 1, "Last modified: %d", sync_timestamps[name]);
+        PRINTD(4, 1, "Last modified: %lu", sync_timestamps[name]);
     }/*}}}*/
 
     PRINTD(2, 0, "Initializing session");
@@ -315,7 +315,7 @@ int main(int argc, char *argv[]) {/*{{{*/
             RAND_bytes(key, 16);
             string passwd = hexlify(key, 16);
             host_list[int_id].password.assign(passwd);
-            string data = read_file("hosts");
+            string data = read_file(STRLITFIX("hosts"));
             int pos = data.find(host_list[int_id].address, 0);
             pos += host_list[int_id].address.length() +
                    std::to_string(host_list[int_id].port).length() + 2;

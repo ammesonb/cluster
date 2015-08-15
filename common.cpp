@@ -128,7 +128,7 @@ namespace Cluster {
                 PRINTDI(5, "Host %s is subscribed", host_list[stoi(host)].address.c_str());
                 serv_hosts.push_back(host_list[stoi(host)]);
             }
-            PRINTD(4, 3, "Found %d hosts", serv_hosts.size());
+            PRINTD(4, 3, "Found %lu hosts", serv_hosts.size());
             end_split(1);
             serv = get_split();
             service.hosts = serv_hosts;
@@ -185,7 +185,7 @@ namespace Cluster {
             PRINTDI(1, "Failed to list directory %s", dir);
         }
         closedir(d);
-        PRINTDI(5, "Directory %s had %d files", dir, files.size());
+        PRINTDI(5, "Directory %s had %lu files", dir, files.size());
         return files;
     }/*}}}*/
 
@@ -320,7 +320,7 @@ namespace Cluster {
         f.seekg(0, std::ios::beg);
 
         str.assign((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
-        PRINTDI(5, "Read %d bytes", str.length());
+        PRINTDI(5, "Read %lu bytes", str.length());
         return str;
     }/*}}}*/
 

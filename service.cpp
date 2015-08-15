@@ -7,7 +7,7 @@
 namespace Cluster {
     // Online is true if a host coming online prompted the function,
     // false if a host dropped offline
-    void Service::start_stop(int hostid, bool online) {
+    void Service::start_stop(int hostid, bool online) {/*{{{*/
         bool running = (std::find(running_services.begin(), running_services.end(), id) != running_services.end());
         // If this service is running and a host dropped offline, do nothing
         if (running && !online) return;
@@ -33,15 +33,15 @@ namespace Cluster {
         }
 
 
-    }
+    }/*}}}*/
 
-    void Service::start() {
+    void Service::start() {/*{{{*/
         // TODO write me
         PRINTD(2, 0, "Starting service %s", name.c_str());
-    }
+    }/*}}}*/
 
-    void Service::stop() {
+    void Service::stop() {/*{{{*/
         // TODO write me
         PRINTD(2, 0, "Stopping service %s", name.c_str());
-    }
+    }/*}}}*/
 }
