@@ -10,6 +10,8 @@ using std::string;
 using std::vector;
 
 namespace Cluster {
+    class Service;
+
     class Host {
         public:
             int id;
@@ -17,6 +19,7 @@ namespace Cluster {
             int port;
             int socket;
             unsigned long long last_msg = 0;
+            bool online;
             bool dynamic;
             vector<Service> services;
             string password;

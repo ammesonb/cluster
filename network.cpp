@@ -173,6 +173,7 @@ namespace Cluster {
 
             h.socket = client_fd;
             h.last_msg = get_cur_time();
+            h.online = true;
             hosts_online.push_back(h);
             pthread_t sender_thread;
             pthread_create(&sender_thread, NULL, sender_loop, &h);
@@ -243,6 +244,7 @@ namespace Cluster {
         }
         set_sock_opts(sock);
         free(h);
+        host.online = true;
         hosts_online.push_back(host);
         host.socket = sock;
         string msg = enc_msg(host_list[int_id].address, host.password);

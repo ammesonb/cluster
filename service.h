@@ -17,6 +17,10 @@ namespace Cluster {
             int id;
             string name;
             vector<Host> hosts;
+
+            void start_stop(int hostid, bool online);
+            void start();
+            void stop();
     };
 }
 #endif

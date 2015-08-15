@@ -46,8 +46,10 @@ namespace Cluster {
     extern map<int, Host> host_list;
     extern map<int, Service> serv_list;
     extern vector<Host> hosts_online;
-    extern vector<string> sync_files;
+    extern vector<int> running_services;
     extern map<int, vector<string>> send_message_queue;
+
+    extern vector<string> sync_files;
     extern map<string, string> sync_checksums;
     extern map<string, time_t> sync_timestamps;
 

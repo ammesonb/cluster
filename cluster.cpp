@@ -78,8 +78,10 @@ namespace Cluster {/*{{{*/
     map<int, Host> host_list;
     map<int, Service> serv_list;
     vector<Host> hosts_online;
-    vector<string> sync_files;
+    vector<int> running_services;
     map<int, vector<string>> send_message_queue;
+
+    vector<string> sync_files;
     map<string, string> sync_checksums;
     map<string, time_t> sync_timestamps;
 
@@ -284,6 +286,7 @@ int main(int argc, char *argv[]) {/*{{{*/
                     break;
                 }
                 PRINTD(2, 0, "Host %s is offline", h.address.c_str());
+                h.online = false;
                 hosts_online.erase(std::remove(hosts_online.begin(), hosts_online.end(), h), hosts_online.end());
                 // TODO start appropriate services
             }
@@ -303,7 +306,7 @@ int main(int argc, char *argv[]) {/*{{{*/
             time_t now = time(0);
             struct tm *tmn = localtime(&now);
             char *buf = create_str(100);
-            strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", tmn);
+            strftime(buf, 100, "%F %T", tmn);
             PRINTD(2, 0, "Updating encryption key at %s", buf);
             free(buf);
             last_key_update = get_cur_time();
