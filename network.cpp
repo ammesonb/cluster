@@ -177,9 +177,8 @@ namespace Cluster {
             hosts_online.push_back(h);
             pthread_t sender_thread;
             pthread_create(&sender_thread, NULL, sender_loop, &h);
-
-            // TODO check status of running services and see if I need to stop
-            // one or more of them
+            
+            check_services(h.id, true);
         }
 
         PRINTD(1, 0, "Accept thread is exiting");
@@ -259,6 +258,8 @@ namespace Cluster {
         } else {
             PRINTD(1, 0, "Failed to authenticate with %s", host.address.c_str());
         }
+
+        check_services(host.id, true);
     }/*}}}*/
 
     void set_sock_opts(int sockfd) { /*{{{*/

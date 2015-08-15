@@ -62,6 +62,8 @@ namespace Cluster {
     bool validate_service_config();
     void load_service_config();
 
+    void check_services(int hostid, bool online);
+
     bool is_ip(string s);
 
     vector<string> get_directory_files(char *dir);

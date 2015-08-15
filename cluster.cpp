@@ -288,7 +288,7 @@ int main(int argc, char *argv[]) {/*{{{*/
                 PRINTD(2, 0, "Host %s is offline", h.address.c_str());
                 h.online = false;
                 hosts_online.erase(std::remove(hosts_online.begin(), hosts_online.end(), h), hosts_online.end());
-                // TODO start appropriate services
+                check_services(h.id, false);
             }
         }/*}}}*/
 

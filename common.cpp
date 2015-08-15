@@ -153,6 +153,14 @@ namespace Cluster {
         return s;
     }/*}}}*/
 
+    void check_services(int hostid, bool online) {/*{{{*/
+        Host h = host_list[int_id];
+        for (auto it = h.services.begin(); it != h.services.end(); it++) {
+            Service s = *it;
+            s.start_stop(hostid, online);
+        }
+    }/*}}}*/
+
     bool is_ip(string s) {/*{{{*/
         bool ip = true;
         for (int i = 0; i < s.length(); i++) {
