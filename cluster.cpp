@@ -158,6 +158,16 @@ int main(int argc, char *argv[]) {/*{{{*/
 
     PRINTD(1, 1, "Found debug level %d", debug);
 
+    // Read in machine number and set ping message
+    PRINTD(3, 1, "Determining my ID");/*{{{*/
+    my_id = read_file(STRLITFIX("/var/opt/cluster/id"));
+    my_id.assign(trim(my_id));
+    int_id = stoi(my_id);
+    PRINTDI(3, "My ID is %s", my_id.c_str());
+    ping_msg.reserve(my_id.length() + 5);
+    ping_msg.append(my_id).append("-ping");
+    if (ping_msg.length() < 6) {cerr <<  "Failed to parse id" << endl; exit(1);}/*}}}*/
+
     PRINTD(3, 1, "Loading hosts");
     if (!validate_host_config()) {DIE("Found invalid host configuration file!");}
     load_host_config(); 
@@ -215,17 +225,6 @@ int main(int argc, char *argv[]) {/*{{{*/
     init_dbus();
     dbus_error_free(&dberror);/*}}}*/
 
-    PRINTD(3, 1, "Determining my ID");/*{{{*/
-    // Read in machine number and set ping message
-    string my_id = read_file(STRLITFIX("/var/opt/cluster/id"));
-    my_id.assign(trim(my_id));
-    int int_id = stoi(my_id);
-    int port = host_list[int_id].port;
-    PRINTDI(3, "My ID is %s", my_id.c_str());
-    ping_msg.reserve(my_id.length() + 5);
-    ping_msg.append(my_id).append("-ping");
-    if (ping_msg.length() < 6) {cerr <<  "Failed to parse id" << endl; exit(1);}/*}}}*/
-
     PRINTD(3, 0, "Performing crypto sanity check");/*{{{*/
     PRINTD(3, 1, "Plain: %s", ping_msg.c_str());
     string out = enc_msg(ping_msg, string("password"));
@@ -277,18 +276,20 @@ int main(int argc, char *argv[]) {/*{{{*/
     PRINTD(1, 0, "Entering service loop");
     while (keep_running) {/*{{{*/
         // Check that all hosts are actually online/*{{{*/
-        for (auto it = hosts_online.begin(); it != hosts_online.end(); it++) {
-            Host h = *it;
-            if (get_cur_time() - h.last_msg > dead) {
-                if (!verify_connectivity()) {
-                    PRINTD(1, 0, "I am offline!");
-                    // TODO do something here
-                    break;
+        if (hosts_online.size() > 0) {
+            for (auto it = hosts_online.begin(); it != hosts_online.end(); it++) {
+                Host h = *it;
+                if (get_cur_time() - h.last_msg > dead) {
+                    if (!verify_connectivity()) {
+                        PRINTD(1, 0, "I am offline!");
+                        // TODO do something here
+                        break;
+                    }
+                    PRINTD(2, 0, "Host %s is offline", h.address.c_str());
+                    h.online = false;
+                    hosts_online.erase(std::remove(hosts_online.begin(), hosts_online.end(), h), hosts_online.end());
+                    check_services(h.id, false);
                 }
-                PRINTD(2, 0, "Host %s is offline", h.address.c_str());
-                h.online = false;
-                hosts_online.erase(std::remove(hosts_online.begin(), hosts_online.end(), h), hosts_online.end());
-                check_services(h.id, false);
             }
         }/*}}}*/
 
