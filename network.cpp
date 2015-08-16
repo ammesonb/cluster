@@ -146,6 +146,7 @@ namespace Cluster {
             // If s_addr is 0 then no connection was actually attempted and the call simply timed out
             if (client_addr.sin_addr.s_addr == 0) continue;
             if (client_fd < 0) {PRINTD(1, 0, "Failed to accept a connection from %s", addr); continue;}
+            PRINTD(1, 0, "Waiting to receive auth from %s", addr);
             char *data = create_str(1024);
             string hostdata;
             int read = recv(client_fd, data, 1024, 0);
@@ -218,7 +219,7 @@ namespace Cluster {
         h->ai_socktype = SOCK_STREAM;
         h->ai_protocol = 0;
 
-        if (getaddrinfo(host.address.c_str(), std::to_string(port).c_str(), h, &res)) {
+        if (getaddrinfo(host.address.c_str(), std::to_string(host.port).c_str(), h, &res)) {
             PRINTDR(1, 1, "Failed to get address info for %s", host.address.c_str());
             return;
         }
@@ -235,7 +236,10 @@ namespace Cluster {
             if (setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (char*)&to, sizeof(to)) < 0)
                 PRINTD(1, 0, "Failed to set send timeout in connect");
             if (sock == -1) continue;
+            ((struct sockaddr_in*)rp->ai_addr)->sin_port = host.port;
+            PRINTDI(3, "Attempting to connect to %s:%d", inet_ntoa(((struct sockaddr_in*)rp->ai_addr)->sin_addr), ((struct sockaddr_in*)rp->ai_addr)->sin_port);
             if (connect(sock, rp->ai_addr, rp->ai_addrlen) != -1)
+                PRINTDI(3, "Connect succeeded");
                 break;
         }
         if (rp == NULL) {
@@ -244,6 +248,9 @@ namespace Cluster {
         }
         set_sock_opts(sock);
         free(h);
+
+        PRINTDI(4, "Authenticating with %s", host.address.c_str());
+
         host.online = true;
         hosts_online.push_back(host);
         host.socket = sock;
@@ -257,7 +264,7 @@ namespace Cluster {
         if (strcmp(buf, "auth") == 0) {
             PRINTDR(1, 1, "Successfully connected to %s", host.address.c_str());
         } else {
-            PRINTD(1, 0, "Failed to authenticate with %s", host.address.c_str());
+            PRINTD(1, 0, "Failed to authenticate with %s, received %s", host.address.c_str(), buf);
         }
 
         check_services(host.id, true);
