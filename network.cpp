@@ -188,7 +188,7 @@ namespace Cluster {
     }/*}}}*/
 
     void start_accept_thread(int port) {/*{{{*/
-        PRINTDI(3, "Configuring connection accept socket");
+        PRINTDI(3, "Configuring connection accept socket on %d", port);
         acceptfd = socket(AF_INET, SOCK_STREAM, 0);
         set_sock_opts(acceptfd);
 
@@ -212,6 +212,7 @@ namespace Cluster {
     void connect_to_host(Host host) {/*{{{*/
         // TODO this won't work if two dynamic hosts are present in the config file
         // TODO maybe add a startup DDNS update command to ensure that dns addresses resolve properly?
+        PRINTDI(3, "Starting connection to %s:%d", host.address.c_str(), host.port);
         struct addrinfo *h = (struct addrinfo*)malloc(sizeof(struct addrinfo) + 1);
         struct addrinfo *res, *rp;
         memset(h, '\0', sizeof(*h));
