@@ -8,6 +8,8 @@
 #include <arpa/inet.h>
 #include <openssl/evp.h>
 #include <openssl/rand.h>
+#include <errno.h>
+#include <string.h>
 
 #include "common.h"
 #include "network.h"
@@ -228,22 +230,20 @@ namespace Cluster {
         int sock;
         struct timeval to;
         // Timeout after 5 seconds
-        to.tv_sec = 5;
+        to.tv_sec = 60;
         to.tv_usec = 0;
         bool succeed = false;
         for (rp = res; rp != NULL; rp = rp->ai_next) {
             sock = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
-            if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (char*)&to, sizeof(to)) < 0)
-                PRINTD(1, 0, "Failed to set receive timeout in connect");
-            if (setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (char*)&to, sizeof(to)) < 0)
-                PRINTD(1, 0, "Failed to set send timeout in connect");
             if (sock == -1) continue;
-            ((struct sockaddr_in*)rp->ai_addr)->sin_port = host.port;
-            PRINTDI(3, "Attempting to connect to %s:%d", inet_ntoa(((struct sockaddr_in*)rp->ai_addr)->sin_addr), ((struct sockaddr_in*)rp->ai_addr)->sin_port);
+            ((struct sockaddr_in*)rp->ai_addr)->sin_port = htons(host.port);
+            PRINTDI(3, "Resolved to %s", inet_ntoa(((struct sockaddr_in*)rp->ai_addr)->sin_addr), ((struct sockaddr_in*)rp->ai_addr)->sin_port);
             if (connect(sock, rp->ai_addr, rp->ai_addrlen) != -1) {
                 PRINTDI(3, "Connect succeeded");
                 succeed = true;
                 break;
+            } else {
+                PRINTDI(1, "Connection failed with error %d, %s", errno, strerror(errno));
             }
         }
         if (!succeed) {
@@ -258,7 +258,7 @@ namespace Cluster {
         host.online = true;
         hosts_online.push_back(host);
         host.socket = sock;
-        string msg = enc_msg(host_list[int_id].address, host.password);
+        string msg = enc_msg(host_list[int_id].address, host_list[int_id].password);
         string data;
         data.reserve(my_id.length() + 3 + msg.length());
         data.append(my_id).append("--").append(msg);
@@ -268,7 +268,7 @@ namespace Cluster {
         if (strcmp(buf, "auth") == 0) {
             PRINTDR(1, 1, "Successfully connected to %s", host.address.c_str());
         } else {
-            PRINTD(1, 0, "Failed to authenticate with %s, received %s", host.address.c_str(), buf);
+            PRINTD(1, 0, "Failed to authenticate with %s, sent %s and received %s", host.address.c_str(), data.c_str(), buf);
         }
 
         check_services(host.id, true);

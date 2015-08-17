@@ -231,7 +231,7 @@ int main(int argc, char *argv[]) {/*{{{*/
     PRINTD(3, 1, "Enc: %s", out.c_str());
     string pt = dec_msg(out, string("password"));
     PRINTD(3, 1, "Dec: %s", pt.c_str());
-    if (pt != ping_msg) {PRINTD(1, 0, "AES encrypt/decrypt didn't return same value!");}/*}}}*/
+    if (pt != ping_msg) {DIE(1, 0, "AES encrypt/decrypt didn't return same value!");}/*}}}*/
 
     PRINTD(2, 0, "Starting networking services");/*{{{*/
     bool online = verify_connectivity();
@@ -300,6 +300,7 @@ int main(int argc, char *argv[]) {/*{{{*/
             queue_keepalive();
         }/*}}}*/
 
+        // TODO fix timing on this
         // Check key update interval/*{{{*/
         // Should be once an hour at 3 minute intervals based off of integer ID for host
         int seconds = get_cur_time() % 3600;
