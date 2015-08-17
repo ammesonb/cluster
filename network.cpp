@@ -197,7 +197,7 @@ namespace Cluster {
         memset(&addr, 0, sizeof(addr));
         addr.sin_family = AF_INET;
         addr.sin_addr.s_addr = INADDR_ANY;
-        addr.sin_port = port;/*}}}*/
+        addr.sin_port = htons(port);/*}}}*/
 
         if (bind(acceptfd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
             DIE("Failed to bind accept socket");
@@ -230,7 +230,7 @@ namespace Cluster {
         // Timeout after 5 seconds
         to.tv_sec = 5;
         to.tv_usec = 0;
-        bool succeed = true;
+        bool succeed = false;
         for (rp = res; rp != NULL; rp = rp->ai_next) {
             sock = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
             if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (char*)&to, sizeof(to)) < 0)
@@ -242,10 +242,8 @@ namespace Cluster {
             PRINTDI(3, "Attempting to connect to %s:%d", inet_ntoa(((struct sockaddr_in*)rp->ai_addr)->sin_addr), ((struct sockaddr_in*)rp->ai_addr)->sin_port);
             if (connect(sock, rp->ai_addr, rp->ai_addrlen) != -1) {
                 PRINTDI(3, "Connect succeeded");
+                succeeded = true;
                 break;
-            } else {
-                PRINTD(3, 0, "Failed to connect");
-                succeed = false;
             }
         }
         if (!succeed) {
