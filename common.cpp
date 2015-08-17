@@ -244,7 +244,7 @@ namespace Cluster {
         PRINTDI(5, "Returning substr from %d to %d", sp_getlastoff(), sp_getoff());
         string string_split_ret = sp_getsrc().substr(sp_getlastoff(), sp_getoff() - sp_getlastoff());
         if (sp_getoff() < sp_getsrc().length())
-            string_split_offset[string_split_level] = sp_getoff() + 1;
+            string_split_offset[string_split_level] = sp_getoff() + sp_getdel().length();
         return string_split_ret;
     }/*}}}*/
 
