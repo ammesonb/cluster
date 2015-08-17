@@ -242,7 +242,7 @@ namespace Cluster {
             PRINTDI(3, "Attempting to connect to %s:%d", inet_ntoa(((struct sockaddr_in*)rp->ai_addr)->sin_addr), ((struct sockaddr_in*)rp->ai_addr)->sin_port);
             if (connect(sock, rp->ai_addr, rp->ai_addrlen) != -1) {
                 PRINTDI(3, "Connect succeeded");
-                succeeded = true;
+                succeed = true;
                 break;
             }
         }
