@@ -197,7 +197,7 @@ namespace Cluster {
         memset(&addr, 0, sizeof(addr));
         addr.sin_family = AF_INET;
         addr.sin_addr.s_addr = INADDR_ANY;
-        addr.sin_port = htons(port);/*}}}*/
+        addr.sin_port = port;/*}}}*/
 
         if (bind(acceptfd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
             DIE("Failed to bind accept socket");
@@ -238,7 +238,7 @@ namespace Cluster {
             if (setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (char*)&to, sizeof(to)) < 0)
                 PRINTD(1, 0, "Failed to set send timeout in connect");
             if (sock == -1) continue;
-            ((struct sockaddr_in*)rp->ai_addr)->sin_port = htons(host.port);
+            ((struct sockaddr_in*)rp->ai_addr)->sin_port = host.port;
             PRINTDI(3, "Attempting to connect to %s:%d", inet_ntoa(((struct sockaddr_in*)rp->ai_addr)->sin_addr), ((struct sockaddr_in*)rp->ai_addr)->sin_port);
             if (connect(sock, rp->ai_addr, rp->ai_addrlen) != -1) {
                 PRINTDI(3, "Connect succeeded");
