@@ -220,9 +220,10 @@ int main(int argc, char *argv[]) {/*{{{*/
     dbus_error_init(&dberror);
     conn = dbus_bus_get(DBUS_BUS_SESSION, &dberror);
     if (!conn || conn == NULL) {
-        DIE("Connection to D-BUS daemon failed: %s", dberror.message);
+        PRINTD(1, 0, "Connection to D-BUS daemon failed: %s", dberror.message);
+    } else {
+        init_dbus();
     }
-    init_dbus();
     dbus_error_free(&dberror);/*}}}*/
 
     PRINTD(3, 0, "Performing crypto sanity check");/*{{{*/

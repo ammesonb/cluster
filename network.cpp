@@ -297,6 +297,7 @@ namespace Cluster {
             PRINTD(1, 0, "Failed to authenticate with %s, sent %s and received %s", host.address.c_str(), data.c_str(), buf);
         }
 
+        host.last_msg = get_cur_time();
         check_services(host.id, true);
     }/*}}}*/
 
