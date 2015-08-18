@@ -274,6 +274,7 @@ int main(int argc, char *argv[]) {/*{{{*/
     int last_key_update = get_cur_time();
     PRINTD(1, 0, "Entering service loop");
     while (keep_running) {/*{{{*/
+        vector<int> now_offline;
         // Check that all hosts are actually online/*{{{*/
         if (hosts_online.size() > 0) {
             for (auto it = hosts_online.begin(); it != hosts_online.end(); it++) {
@@ -286,11 +287,16 @@ int main(int argc, char *argv[]) {/*{{{*/
                     }
                     PRINTD(2, 0, "Host %s is offline", h.address.c_str());
                     h.online = false;
-                    hosts_online.erase(std::remove(hosts_online.begin(), hosts_online.end(), h), hosts_online.end());
+                    now_offline.push_back(h.id);
                     check_services(h.id, false);
                 }
             }
         }/*}}}*/
+
+        if (now_offline.size() > 0) {
+            for (auto it = now_offline.begin(); it != now_offline.end(); it++)
+            hosts_online.erase(std::remove(hosts_online.begin(), hosts_online.end(), host_list[*it]), hosts_online.end());
+        }
 
         // Check keepalive timer/*{{{*/
         if (get_cur_time() - last_keepalive_update > interval) {
