@@ -231,7 +231,7 @@ int main(int argc, char *argv[]) {/*{{{*/
     PRINTD(3, 1, "Enc: %s", out.c_str());
     string pt = dec_msg(out, string("password"));
     PRINTD(3, 1, "Dec: %s", pt.c_str());
-    if (pt != ping_msg) {DIE(1, 0, "AES encrypt/decrypt didn't return same value!");}/*}}}*/
+    if (pt != ping_msg) {DIE("AES encrypt/decrypt didn't return same value!");}/*}}}*/
 
     PRINTD(2, 0, "Starting networking services");/*{{{*/
     bool online = verify_connectivity();
@@ -267,8 +267,6 @@ int main(int argc, char *argv[]) {/*{{{*/
 
     diff -= diff2;
     PRINTD(3, 0, "Initialization took %llu milliseconds", diff);
-
-    // TODO check service status and see which services I should start
 
     // TODO need termination condition
     int last_keepalive_update = 0;

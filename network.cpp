@@ -11,6 +11,8 @@
 #include <errno.h>
 #include <string.h>
 
+#include <algorithm>
+
 #include "common.h"
 #include "network.h"
 
@@ -128,12 +130,34 @@ namespace Cluster {
                 if (recv(h.socket, buf, 1024, MSG_DONTWAIT) > 0) {
                     h.last_msg = get_cur_time();
                     if (strcmp(buf, std::to_string(h.id).append("-ping").c_str()) == 0) continue;
-                    // TODO handle other commands here
+                    start_split(string(buf), "--");
+                    string command = get_split();
+                    PRINTD(4, 0, "Received command %s from host %d", command.c_str(), h.id);
+                    if (command == "fs") {
+                        // TODO handle file
+                    } else if (command == "dyn") {
+                        // TODO dynamic host
+                    } else if (command == "off") {
+                        pthread_t off_t;
+                        int hid = h.id;
+                        pthread_create(&off_t, NULL, notify_offline, &hid);
+                        // TODO host is going offline
+                    }
                 }
                 free(buf);
             }
         }
         PRINTD(1, 0, "Receive thread is terminating");
+        return NULL;
+    }/*}}}*/
+
+    void* notify_offline(void *arg) {/*{{{*/
+        int *hid = (int*)arg;
+        PRINTD(2, 0, "Host %d is going offline", *hid);
+        Host h = host_list[*hid];
+        h.online = false;
+        hosts_online.erase(std::remove(hosts_online.begin(), hosts_online.end(), h), hosts_online.end());
+        check_services(*hid, false);
         return NULL;
     }/*}}}*/
 
@@ -237,7 +261,7 @@ namespace Cluster {
             sock = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
             if (sock == -1) continue;
             ((struct sockaddr_in*)rp->ai_addr)->sin_port = htons(host.port);
-            PRINTDI(3, "Resolved to %s", inet_ntoa(((struct sockaddr_in*)rp->ai_addr)->sin_addr), ((struct sockaddr_in*)rp->ai_addr)->sin_port);
+            PRINTDI(3, "Resolved to %s", inet_ntoa(((struct sockaddr_in*)rp->ai_addr)->sin_addr));
             if (connect(sock, rp->ai_addr, rp->ai_addrlen) != -1) {
                 PRINTDI(3, "Connect succeeded");
                 succeed = true;
