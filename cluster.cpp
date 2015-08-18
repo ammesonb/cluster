@@ -237,6 +237,7 @@ int main(int argc, char *argv[]) {/*{{{*/
     bool online = verify_connectivity();
     if (online) {
         PRINTD(3, 1, "I am online");
+        port = host_list[int_id].port;
     } else {
         DIE("I am not online");
     }

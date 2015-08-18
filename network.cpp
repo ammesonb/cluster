@@ -254,11 +254,13 @@ namespace Cluster {
         int sock;
         struct timeval to;
         // Timeout after 5 seconds
-        to.tv_sec = 60;
+        to.tv_sec = 5;
         to.tv_usec = 0;
         bool succeed = false;
         for (rp = res; rp != NULL; rp = rp->ai_next) {
             sock = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+            setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (char*)&to, sizeof(to));
+            setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (char*)&to, sizeof(to));
             if (sock == -1) continue;
             ((struct sockaddr_in*)rp->ai_addr)->sin_port = htons(host.port);
             PRINTDI(3, "Resolved to %s", inet_ntoa(((struct sockaddr_in*)rp->ai_addr)->sin_addr));
