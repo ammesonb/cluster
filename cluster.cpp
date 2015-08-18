@@ -77,7 +77,7 @@ namespace Cluster {/*{{{*/
 
     map<int, Host> host_list;
     map<int, Service> serv_list;
-    vector<Host> hosts_online;
+    vector<int> hosts_online;
     vector<int> running_services;
     map<int, vector<string>> send_message_queue;
 
@@ -125,7 +125,7 @@ namespace Cluster {/*{{{*/
 
     void queue_keepalive() {/*{{{*/
         for (auto it = hosts_online.begin(); it != hosts_online.end(); it++) {
-            Host h = *it;
+            Host h = host_list[*it];
             send_message_queue[h.id].push_back(ping_msg);
         }
     }/*}}}*/
@@ -250,7 +250,7 @@ int main(int argc, char *argv[]) {/*{{{*/
         Host h = (*it).second;
         if (h.id == int_id) continue;
         PRINTD(3, 2, "Connecting to host %s", h.address.c_str());
-        connect_to_host(h);
+        connect_to_host((*it).first);
     }
 
     PRINTD(3, 1, "Creating receive thread");
@@ -279,7 +279,7 @@ int main(int argc, char *argv[]) {/*{{{*/
         // Check that all hosts are actually online/*{{{*/
         if (hosts_online.size() > 0) {
             for (auto it = hosts_online.begin(); it != hosts_online.end(); it++) {
-                Host h = *it;
+                Host h = host_list[*it];
                 if (get_cur_time() - h.last_msg > dead) {
                     if (!verify_connectivity()) {
                         PRINTD(1, 0, "I am offline!");
@@ -296,7 +296,7 @@ int main(int argc, char *argv[]) {/*{{{*/
 
         if (now_offline.size() > 0) {
             for (auto it = now_offline.begin(); it != now_offline.end(); it++)
-            hosts_online.erase(std::remove(hosts_online.begin(), hosts_online.end(), host_list[*it]), hosts_online.end());
+            hosts_online.erase(std::remove(hosts_online.begin(), hosts_online.end(), *it), hosts_online.end());
         }
 
         // Check keepalive timer/*{{{*/

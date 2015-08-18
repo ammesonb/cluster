@@ -110,7 +110,7 @@ namespace Cluster {
                 string msg = *it;
                 PRINTD(5, 1, "Sending %s to all hosts", msg.c_str());
                 for (auto it2 = hosts_online.begin(); it2 != hosts_online.end(); it2++) {
-                    Host h = *it2;
+                    Host h = host_list[*it2];
                     string ctxt = enc_msg(msg, h.password);
                     // TODO Does this block?
                     send(h.socket, ctxt.c_str(), ctxt.length(), 0);
@@ -125,7 +125,7 @@ namespace Cluster {
         while (keep_running) {
             sleep(interval / 2);
             for (auto it = hosts_online.begin(); it != hosts_online.end(); it++) {
-                Host h = *it;
+                Host h = host_list[*it];
                 char *buf = create_str(1024);
                 if (recv(h.socket, buf, 1024, MSG_DONTWAIT) > 0) {
                     h.last_msg = get_cur_time();
@@ -156,7 +156,7 @@ namespace Cluster {
         PRINTD(2, 0, "Host %d is going offline", *hid);
         Host h = host_list[*hid];
         h.online = false;
-        hosts_online.erase(std::remove(hosts_online.begin(), hosts_online.end(), h), hosts_online.end());
+        hosts_online.erase(std::remove(hosts_online.begin(), hosts_online.end(), *hid), hosts_online.end());
         check_services(*hid, false);
         return NULL;
     }/*}}}*/
@@ -202,7 +202,7 @@ namespace Cluster {
             h.socket = client_fd;
             h.last_msg = get_cur_time();
             h.online = true;
-            hosts_online.push_back(h);
+            hosts_online.push_back(h.id);
             pthread_t sender_thread;
             pthread_create(&sender_thread, NULL, sender_loop, &h);
             
@@ -235,9 +235,10 @@ namespace Cluster {
         pthread_create(&accept_thread, NULL, accept_conn, NULL);
     }/*}}}*/
 
-    void connect_to_host(Host host) {/*{{{*/
+    void connect_to_host(int hostid) {/*{{{*/
         // TODO this won't work if two dynamic hosts are present in the config file
         // TODO maybe add a startup DDNS update command to ensure that dns addresses resolve properly?
+        Host host = host_list[hostid];
         PRINTDI(3, "Starting connection to %s:%d", host.address.c_str(), host.port);
         struct addrinfo *h = (struct addrinfo*)malloc(sizeof(struct addrinfo) + 1);
         struct addrinfo *res, *rp;
@@ -282,7 +283,7 @@ namespace Cluster {
         PRINTDI(4, "Authenticating with %s", host.address.c_str());
 
         host.online = true;
-        hosts_online.push_back(host);
+        hosts_online.push_back(host.id);
         host.socket = sock;
         string msg = enc_msg(host_list[int_id].address, host_list[int_id].password);
         string data;

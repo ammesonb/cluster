@@ -4,7 +4,7 @@
 #include "host.h"
 
 namespace Cluster {
-    extern vector<Host> hosts_online;
+    extern vector<int> hosts_online;
 
     bool verify_connectivity();
 
@@ -16,7 +16,7 @@ namespace Cluster {
     void* recv_loop(void *arg);
     void* notify_offline(void *arg);
     void start_accept_thread(int port);
-    void connect_to_host(Host host);
+    void connect_to_host(int hostid);
     void set_sock_opts(int fd);
 }
 #endif
