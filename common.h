@@ -75,7 +75,7 @@ namespace Cluster {
     void end_split(int level);
 
     char* create_str(int length);
-    unsigned long long get_cur_time();
+    unsigned long get_cur_time();
 
     string hexlify(string data);
     string hexlify(unsigned char *data, int len);

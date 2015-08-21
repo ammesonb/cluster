@@ -18,7 +18,7 @@ namespace Cluster {
             string address;
             int port;
             int socket;
-            unsigned long long last_msg = 0;
+            unsigned long last_msg = 0;
             bool online;
             bool dynamic;
             vector<Service> services;
