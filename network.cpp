@@ -129,8 +129,9 @@ namespace Cluster {
                 char *buf = create_str(1024);
                 if (recv(h.socket, buf, 1024, MSG_DONTWAIT) > 0) {
                     h.last_msg = get_cur_time();
-                    if (strcmp(buf, std::to_string(h.id).append("-ping").c_str()) == 0) continue;
-                    start_split(string(buf), "--");
+                    string msg = dec_msg(string(buf), host_list[int_id].password);
+                    if (std::to_string(h.id).append("-ping").compare(msg) == 0) continue;
+                    start_split(msg, "--");
                     string command = get_split();
                     PRINTD(4, 0, "Received command %s from host %d", command.c_str(), h.id);
                     if (command == "fs") {
