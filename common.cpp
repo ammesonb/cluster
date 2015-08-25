@@ -258,12 +258,10 @@ namespace Cluster {
         string_split_level--;
     }/*}}}*/
 
-    unsigned long get_cur_time() {/*{{{*/
+    time_t get_cur_time() {/*{{{*/
         struct timeval cur_time;
         gettimeofday(&cur_time, NULL);
-        unsigned long long cur = cur_time.tv_sec;
-        cur += cur_time.tv_usec;
-        return cur;
+        return cur_time.tv_sec;
     }/*}}}*/
 
     string hexlify(string data) {/*{{{*/

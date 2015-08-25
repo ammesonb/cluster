@@ -238,8 +238,8 @@ namespace Cluster {
     void connect_to_host(int hostid) {/*{{{*/
         // TODO this won't work if two dynamic hosts are present in the config file
         // TODO maybe add a startup DDNS update command to ensure that dns addresses resolve properly?
-        Host host = host_list[hostid];
-        PRINTDI(3, "Starting connection to %s:%d", host.address.c_str(), host.port);
+        Host client = host_list[hostid];
+        PRINTDI(3, "Starting connection to %s:%d", client.address.c_str(), client.port);
         struct addrinfo *h = (struct addrinfo*)malloc(sizeof(struct addrinfo) + 1);
         struct addrinfo *res, *rp;
         memset(h, '\0', sizeof(*h));
@@ -247,8 +247,8 @@ namespace Cluster {
         h->ai_socktype = SOCK_STREAM;
         h->ai_protocol = 0;
 
-        if (getaddrinfo(host.address.c_str(), std::to_string(host.port).c_str(), h, &res)) {
-            PRINTDR(1, 1, "Failed to get address info for %s", host.address.c_str());
+        if (getaddrinfo(client.address.c_str(), std::to_string(client.port).c_str(), h, &res)) {
+            PRINTDR(1, 1, "Failed to get address info for %s", client.address.c_str());
             return;
         }
 
@@ -263,7 +263,7 @@ namespace Cluster {
             setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (char*)&to, sizeof(to));
             setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (char*)&to, sizeof(to));
             if (sock == -1) continue;
-            ((struct sockaddr_in*)rp->ai_addr)->sin_port = htons(host.port);
+            ((struct sockaddr_in*)rp->ai_addr)->sin_port = htons(client.port);
             PRINTDI(3, "Resolved to %s", inet_ntoa(((struct sockaddr_in*)rp->ai_addr)->sin_addr));
             if (connect(sock, rp->ai_addr, rp->ai_addrlen) != -1) {
                 PRINTDI(3, "Connect succeeded");
@@ -274,17 +274,17 @@ namespace Cluster {
             }
         }
         if (!succeed) {
-            PRINTD(1, 0, "Failed to connect to %s", host.address.c_str());
+            PRINTD(1, 0, "Failed to connect to %s", client.address.c_str());
             return;
         }
         set_sock_opts(sock);
         free(h);
 
-        PRINTDI(4, "Authenticating with %s", host.address.c_str());
+        PRINTDI(4, "Authenticating with %s", client.address.c_str());
 
-        host.online = true;
-        hosts_online.push_back(host.id);
-        host.socket = sock;
+        host_list[hostid].online = true;
+        hosts_online.push_back(client.id);
+        host_list[hostid].socket = sock;
         string msg = enc_msg(host_list[int_id].address, host_list[int_id].password);
         string data;
         data.reserve(my_id.length() + 3 + msg.length());
@@ -293,13 +293,13 @@ namespace Cluster {
         char *buf = create_str(8);
         recv(sock, buf, 8, 0);
         if (strcmp(buf, "auth") == 0) {
-            PRINTDR(1, 1, "Successfully connected to %s", host.address.c_str());
+            PRINTDR(1, 1, "Successfully connected to %s", client.address.c_str());
         } else {
-            PRINTD(1, 0, "Failed to authenticate with %s, sent %s and received %s", host.address.c_str(), data.c_str(), buf);
+            PRINTD(1, 0, "Failed to authenticate with %s, sent %s and received %s", client.address.c_str(), data.c_str(), buf);
         }
 
-        host.last_msg = get_cur_time();
-        check_services(host.id, true);
+        host_list[hostid].last_msg = get_cur_time();
+        check_services(client.id, true);
     }/*}}}*/
 
     void set_sock_opts(int sockfd) { /*{{{*/

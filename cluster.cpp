@@ -286,7 +286,7 @@ int main(int argc, char *argv[]) {/*{{{*/
                         // TODO do something here
                         break;
                     }
-                    time_t l = (time_t)h.last_msg;
+                    time_t l = h.last_msg;
                     struct tm *t = localtime(&l);
                     PRINTD(2, 0, "Host %s is offline, last heard from at %s", h.address.c_str(), asctime(t));
                     h.online = false;
