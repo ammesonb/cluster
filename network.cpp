@@ -101,12 +101,12 @@ namespace Cluster {
     }/*}}}*/
 
     void* sender_loop(void *arg) {/*{{{*/
-        Host *host = (Host*)arg;
+        int hostid = *((int*)arg);
         while (keep_running) {
             sleep(interval / 2);
-            PRINTD(5, 0, "Checking message queue for %s", host->address.c_str());
-            for (auto it = send_message_queue[host->id].begin();
-                      it != send_message_queue[host->id].end(); it++) {
+            PRINTD(5, 0, "Checking message queue for %s", host_list[hostid].address.c_str());
+            for (auto it = send_message_queue[hostid].begin();
+                      it != send_message_queue[hostid].end(); it++) {
                 string msg = *it;
                 PRINTD(5, 1, "Sending %s to all hosts", msg.c_str());
                 for (auto it2 = hosts_online.begin(); it2 != hosts_online.end(); it2++) {
@@ -117,7 +117,7 @@ namespace Cluster {
                 }
             }
         }
-        PRINTD(1, 0, "Sender for host %s terminating", host->address.c_str());
+        PRINTD(1, 0, "Sender for host %s terminating", host_list[hostid].address.c_str());
         return NULL;
     }/*}}}*/
 
@@ -189,8 +189,7 @@ namespace Cluster {
             string ip;
             ip.assign(addr);
 
-            Host h = host_list.at(hostid);
-            if (h.authenticate(hostid, hostname, ip)) {
+            if (host_list[hostid].authenticate(hostid, hostname, ip)) {
                 PRINTD(4, 0, "Host %d: %s connection authenticated", hostid, hostname.c_str());
                 send(client_fd, "auth", 4, 0);
             } else {
@@ -199,14 +198,14 @@ namespace Cluster {
                 continue;
             }
 
-            h.socket = client_fd;
-            h.last_msg = get_cur_time();
-            h.online = true;
-            hosts_online.push_back(h.id);
+            host_list[hostid].socket = client_fd;
+            host_list[hostid].last_msg = get_cur_time();
+            host_list[hostid].online = true;
+            hosts_online.push_back(host_list[hostid].id);
             pthread_t sender_thread;
-            pthread_create(&sender_thread, NULL, sender_loop, &h);
+            pthread_create(&sender_thread, NULL, sender_loop, &hostid);
             
-            check_services(h.id, true);
+            check_services(host_list[hostid].id, true);
         }
 
         PRINTD(1, 0, "Accept thread is exiting");
