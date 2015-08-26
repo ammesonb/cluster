@@ -125,22 +125,21 @@ namespace Cluster {
         while (keep_running) {
             sleep(interval / 2);
             for (auto it = hosts_online.begin(); it != hosts_online.end(); it++) {
-                Host h = host_list[*it];
                 char *buf = create_str(1024);
-                if (recv(h.socket, buf, 1024, MSG_DONTWAIT) > 0) {
-                    h.last_msg = get_cur_time();
+                if (recv(host_list[*it].socket, buf, 1024, MSG_DONTWAIT) > 0) {
+                    host_list[*it].last_msg = get_cur_time();
                     string msg = dec_msg(string(buf), host_list[int_id].password);
-                    if (std::to_string(h.id).append("-ping").compare(msg) == 0) continue;
+                    if (std::to_string(*it).append("-ping").compare(msg) == 0) continue;
                     start_split(msg, "--");
                     string command = get_split();
-                    PRINTD(4, 0, "Received command %s from host %d", command.c_str(), h.id);
+                    PRINTD(4, 0, "Received command %s from host %d", command.c_str(), *it);
                     if (command == "fs") {
                         // TODO handle file
                     } else if (command == "dyn") {
                         // TODO dynamic host
                     } else if (command == "off") {
                         pthread_t off_t;
-                        int hid = h.id;
+                        int hid = *it;
                         pthread_create(&off_t, NULL, notify_offline, &hid);
                         // TODO host is going offline
                     }
