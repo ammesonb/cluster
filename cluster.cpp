@@ -124,6 +124,7 @@ namespace Cluster {/*{{{*/
     }/*}}}*/
 
     void queue_keepalive() {/*{{{*/
+        PRINTD(4, 0, "Queueing keepalive");
         for (auto it = hosts_online.begin(); it != hosts_online.end(); it++) {
             Host h = host_list[*it];
             send_message_queue[h.id].push_back(ping_msg);
@@ -271,8 +272,8 @@ int main(int argc, char *argv[]) {/*{{{*/
     PRINTD(3, 0, "Initialization took %llu milliseconds", diff);
 
     // TODO need termination condition
-    int last_keepalive_update = 0;
-    long last_key_update = get_cur_time();
+    time_t last_keepalive_update = 0;
+    time_t last_key_update = get_cur_time();
     PRINTD(1, 0, "Entering service loop");
     while (keep_running) {/*{{{*/
         vector<int> now_offline;
