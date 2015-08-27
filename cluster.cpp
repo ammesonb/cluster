@@ -124,7 +124,7 @@ namespace Cluster {/*{{{*/
     }/*}}}*/
 
     void queue_keepalive() {/*{{{*/
-        PRINTD(4, 0, "Queueing keepalive");
+        PRINTD(4, 0, "Queueing keepalive to %lu hosts", hosts_online.size());
         for (auto it = hosts_online.begin(); it != hosts_online.end(); it++) {
             Host h = host_list[*it];
             send_message_queue[h.id].push_back(ping_msg);
