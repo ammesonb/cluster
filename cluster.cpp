@@ -253,6 +253,7 @@ int main(int argc, char *argv[]) {/*{{{*/
         PRINTD(3, 2, "Connecting to host %s", h.address.c_str());
         connect_to_host((*it).first);
     }
+    PRINTD(2, 1, "Found %lu alive hosts", hosts_online.size());
 
     PRINTD(3, 1, "Creating receive thread");
     pthread_t recv_thread;

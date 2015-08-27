@@ -201,11 +201,12 @@ namespace Cluster {
             host_list[hostid].socket = client_fd;
             host_list[hostid].last_msg = get_cur_time();
             host_list[hostid].online = true;
-            hosts_online.push_back(host_list[hostid].id);
+            hosts_online.push_back(hostid);
             pthread_t sender_thread;
             pthread_create(&sender_thread, NULL, sender_loop, &hostid);
+            PRINTD(3, 0, "Host %d: %s connected", hostid, hostname.c_str());
             
-            check_services(host_list[hostid].id, true);
+            check_services(hostid, true);
         }
 
         PRINTD(1, 0, "Accept thread is exiting");
