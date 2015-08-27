@@ -118,6 +118,7 @@ namespace Cluster {
             }
         }
         PRINTD(1, 0, "Sender for host %s terminating", host_list[hostid].address.c_str());
+        free(arg);
         return NULL;
     }/*}}}*/
 
@@ -129,7 +130,7 @@ namespace Cluster {
                 if (recv(host_list[*it].socket, buf, 1024, MSG_DONTWAIT) > 0) {
                     host_list[*it].last_msg = get_cur_time();
                     string msg = dec_msg(string(buf, 0, strlen(buf)), host_list[int_id].password);
-                    if (std::to_string(*it).append("-ping").compare(msg) == 0) {PRINTD(5, 0, "Got ping message from %d", *it); continue;}
+                    if (std::to_string(*it).append("-ping").compare(msg) == 0) {PRINTD(4, 0, "Got ping message from %d", *it); continue;}
                     start_split(msg, "--");
                     string command = get_split();
                     PRINTD(4, 0, "Received command %s from host %d", command.c_str(), *it);
@@ -203,7 +204,9 @@ namespace Cluster {
             host_list[hostid].online = true;
             hosts_online.push_back(hostid);
             pthread_t sender_thread;
-            pthread_create(&sender_thread, NULL, sender_loop, &hostid);
+            int *hid = (int*)malloc(sizeof(int*));
+            *hid = hostid;
+            pthread_create(&sender_thread, NULL, sender_loop, hid);
             PRINTD(3, 0, "Host %d: %s connected", hostid, hostname.c_str());
             
             check_services(hostid, true);
@@ -299,6 +302,10 @@ namespace Cluster {
         }
 
         host_list[hostid].last_msg = get_cur_time();
+        pthread_t sender_thread;
+        int* hid = (int*)malloc(sizeof(int*));
+        *hid = hostid;
+        pthread_create(&sender_thread, NULL, sender_loop, hid);
         check_services(client.id, true);
     }/*}}}*/
 
