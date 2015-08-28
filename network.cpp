@@ -64,8 +64,8 @@ namespace Cluster {
         }
         outlen += secondlen;
         EVP_CIPHER_CTX_cleanup(&ctx);
-        PRINTDI(5, "Using IV %s", hexlify(iv, 32).c_str());
-        PRINTDI(5, "Data is %s", hexlify(outbuf, outlen).c_str());
+        PRINTDI(5, "Encrypt using IV %s", hexlify(iv, 32).c_str());
+        PRINTDI(5, "Encrypting %s", hexlify(outbuf, outlen).c_str());
 
         return hexlify(iv, 32).append(hexlify(outbuf, outlen));
     }/*}}}*/
@@ -75,8 +75,8 @@ namespace Cluster {
         unsigned char outbuf[4096];
         int outlen, secondlen;
 
-        PRINTDI(5, "Found IV %s", msg.substr(0, 64).c_str());
-        PRINTDI(5, "Data is %s", msg.substr(64, msg.length() - 64).c_str());
+        PRINTDI(5, "Decrypt using IV %s", msg.substr(0, 64).c_str());
+        PRINTDI(5, "Decrypting %s", msg.substr(64, msg.length() - 64).c_str());
 
         string iv = unhexlify(msg.substr(0, 64));
         string data = unhexlify(msg.substr(64, msg.length() - 64));
