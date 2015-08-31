@@ -113,7 +113,7 @@ namespace Cluster {
                       it != send_message_queue[hostid].end(); it++) {
                 string msg = *it;
                 PRINTD(5, 1, "Sending %s to %d", msg.c_str(), hostid);
-                string ctxt = string(msg); //enc_msg(msg, h.password);
+                string ctxt = enc_msg(msg, host_list[hostid].password);
                 // TODO Does this block?
                 send(host_list[hostid].socket, ctxt.c_str(), ctxt.length(), 0);
             }
@@ -135,7 +135,7 @@ namespace Cluster {
                 char *buf = create_str(1024);
                 if (recv(host_list[*it].socket, buf, 1024, MSG_DONTWAIT) > 0) {
                     host_list[*it].last_msg = get_cur_time();
-                    string msg = string(buf, 0, strlen(buf)); //dec_msg(string(buf, 0, strlen(buf)), host_list[int_id].password);
+                    string msg = dec_msg(string(buf, 0, strlen(buf)), host_list[int_id].password);
                     if (std::to_string(*it).append("-ping").compare(msg) == 0) {PRINTD(4, 0, "Got ping message from %d", *it); continue;}
                     start_split(msg, "--");
                     string command = get_split();
@@ -190,7 +190,7 @@ namespace Cluster {
             start_split(hostdata, "--");
             int level = get_split_level();
             int hostid = stoi(get_split());
-            string hostname = get_split(); //dec_msg(get_split(), host_list.at(hostid).password);
+            string hostname = dec_msg(get_split(), host_list.at(hostid).password);
             end_split(level);
             PRINTD(3, 0, "Got attempted host connection from ID %d: %s", hostid, hostname.c_str());
             string ip;
@@ -294,7 +294,7 @@ namespace Cluster {
         host_list[hostid].online = true;
         hosts_online.push_back(client.id);
         host_list[hostid].socket = sock;
-        string msg = string(host_list[int_id].address); //enc_msg(host_list[int_id].address, host_list[int_id].password);
+        string msg = enc_msg(host_list[int_id].address, host_list[int_id].password);
         string data;
         data.reserve(my_id.length() + 3 + msg.length());
         data.append(my_id).append("--").append(msg);
