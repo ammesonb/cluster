@@ -40,6 +40,7 @@
 #include <string>
 #include <sys/time.h>
 #include <dbus/dbus.h>
+#include <confuse.h>
 #include <vector>
 #include <map>
 
@@ -50,6 +51,8 @@ using std::map;
 using std::string;
 
 namespace Cluster {
+    extern cfg_opt_t config[];
+    
     extern string my_id;
     extern int int_id;
     extern int port;
@@ -59,6 +62,7 @@ namespace Cluster {
     extern map<int, Host> host_list;
     extern map<int, Service> serv_list;
     extern vector<int> hosts_online;
+    extern vector<int> hosts_busy;
     extern vector<int> running_services;
     extern map<int, vector<string>> send_message_queue;
 
@@ -94,6 +98,8 @@ namespace Cluster {
     string hexlify(unsigned char *data, int len);
     string unhexlify(string data);
     string hash_file(char *name);
+    string filename(string fname);
+    string dirname(string fname);
     string read_file(char *name);
     time_t get_file_mtime(char *name);
 

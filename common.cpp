@@ -18,6 +18,7 @@ using std::ifstream;
 namespace Cluster {
     int PRINTD_INDENT_LEVEL = 0;
 
+    // TODO consider using keys instead of numeric arrays for split level
     int string_split_level = -1;
     vector<int> last_string_split_offset;
     vector<int> string_split_offset;
@@ -315,6 +316,22 @@ namespace Cluster {
         hash.reserve(md_len);
         hash.assign((char*)md_value);
         return hexlify(hash);
+    }/*}}}*/
+
+    string filename(string fname) {/*{{{*/
+        const size_t last_sep_idx = fname.rfind('/');
+        if (std::string::npos != last_sep_idx) {
+            return fname.substr(last_sep_idx, fname.length() - last_sep_idx);
+        }
+        return string();
+    }/*}}}*/
+
+    string dirname(string fname) {/*{{{*/
+        const size_t last_sep_idx = fname.rfind('/');
+        if (std::string::npos != last_sep_idx) {
+            return fname.substr(0, last_sep_idx);
+        }
+        return string();
     }/*}}}*/
 
     string read_file(char *name) {/*{{{*/

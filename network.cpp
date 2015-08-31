@@ -12,9 +12,12 @@
 #include <string.h>
 
 #include <algorithm>
+#include <fstream>
 
 #include "common.h"
 #include "network.h"
+
+using std::ofstream;
 
 namespace Cluster {
     int acceptfd;
@@ -100,15 +103,16 @@ namespace Cluster {
         return string((char*)outbuf, outlen);
     }/*}}}*/
 
-    bool rem_true(string s) {
+    bool rem_true(string s) {/*{{{*/
         return true;
-    }
+    }/*}}}*/
 
     void* sender_loop(void *arg) {/*{{{*/
         int hostid = *((int*)arg);
         while (keep_running) {
-            sleep(interval / 2);
+            usleep((float)interval / 2.0 * 100000.0);
             PRINTD(5, 0, "Checking message queue for %s", host_list[hostid].address.c_str());
+            // TODO need some sort of message delimiter
             for (auto it = send_message_queue[hostid].begin();
                       it != send_message_queue[hostid].end(); it++) {
                 string msg = *it;
@@ -128,30 +132,85 @@ namespace Cluster {
         return NULL;
     }/*}}}*/
 
-    void *recv_loop(void *arg) {/*{{{*/
+    void* recv_file(void *arg) {/*{{{*/
+        int hid = *((int*)arg);
+        hosts_busy.push_back(hid);
+        char *buf = create_str(1024);
+        PRINTD(4, 0, "Waiting to receive filedata from %d", hid);
+        while (recv(host_list[hid].socket, buf, 1024, MSG_DONTWAIT) <= 0) usleep(250000);
+        string fdata = string(buf, 0, strlen(buf));
+        int level = get_split_level();
+        start_split(fdata, "::");
+        string fname = get_split();
+        const char *name = filename(fname).c_str();
+        char *dircmd = create_str(fname.length() + 20);
+        sprintf(dircmd, "mkdir -p %s", dirname(fname).c_str());
+        system(dircmd);
+        free(dircmd);
+
+        int dlen = std::stoi(get_split());
+        if (dlen <= 0) {
+            PRINTD(1, 0, "File transfer of %s from %d failed", fname.c_str(), hid);
+            send(host_list[hid].socket, "FAIL", 4, 0);
+            free(arg);
+            return NULL;
+        }
+        end_split(level);
+        free(buf);
+        send(host_list[hid].socket, "OK", 2, 0);
+        char *data = create_str(dlen);
+        while (recv(host_list[hid].socket, buf, dlen, MSG_DONTWAIT) <= 0) usleep(250000);
+        ofstream ofile;
+        ofile.open(STRLITFIX(fname.c_str()));
+        ofile << data << std::endl;
+        ofile.close();
+        free(data);
+
+        if (strcmp(name, "hosts") == 0) {
+            PRINTD(2, 0, "Reloading host config");
+            load_host_config();
+        } else if (strcmp(name, "services") == 0) {
+            PRINTD(2, 0, "Reloading service config");
+            load_service_config();
+        } else if (strcmp(name, "cluster.conf") == 0) {
+            PRINTD(2, 0, "Reloading main config");
+            cfg_t *cfg = cfg_init(config, 0);
+            cfg_parse(cfg, "cluster.conf");
+        }
+
+        free(arg);
+        return NULL;
+    }/*}}}*/
+
+    void* recv_loop(void *arg) {/*{{{*/
         while (keep_running) {
-            sleep(interval / 2);
+            usleep((float)interval / 2.0 * 100000.0);
             for (auto it = hosts_online.begin(); it != hosts_online.end(); it++) {
-                char *buf = create_str(1024);
-                if (recv(host_list[*it].socket, buf, 1024, MSG_DONTWAIT) > 0) {
-                    host_list[*it].last_msg = get_cur_time();
-                    string msg = dec_msg(string(buf, 0, strlen(buf)), host_list[int_id].password);
-                    if (std::to_string(*it).append("-ping").compare(msg) == 0) {PRINTD(4, 0, "Got ping message from %d", *it); continue;}
-                    start_split(msg, "--");
-                    string command = get_split();
-                    PRINTD(4, 0, "Received command %s from host %d", command.c_str(), *it);
-                    if (command == "fs") {
-                        // TODO handle file
-                    } else if (command == "dyn") {
-                        // TODO dynamic host
-                    } else if (command == "off") {
-                        pthread_t off_t;
-                        int hid = *it;
-                        pthread_create(&off_t, NULL, notify_offline, &hid);
-                        // TODO host is going offline
+                if (std::find(hosts_busy.begin(), hosts_busy.end(), *it) == hosts_busy.end()) {
+                    char *buf = create_str(1024);
+                    if (recv(host_list[*it].socket, buf, 1024, MSG_DONTWAIT) > 0) {
+                        host_list[*it].last_msg = get_cur_time();
+                        string msg = dec_msg(string(buf, 0, strlen(buf)), host_list[int_id].password);
+                        if (std::to_string(*it).append("-ping").compare(msg) == 0) {PRINTD(4, 0, "Got ping message from %d", *it); continue;}
+                        start_split(msg, "--");
+                        string command = get_split();
+                        PRINTD(4, 0, "Received command %s from host %d", command.c_str(), *it);
+                        if (command == "fs") {
+                            pthread_t file_thread;
+                            int *hid = (int*)malloc(sizeof(int*));
+                            *hid = *it;
+                            pthread_create(&file_thread, NULL, recv_file, hid);
+                        } else if (command == "dyn") {
+                            // TODO dynamic host
+                        } else if (command == "off") {
+                            pthread_t off_t;
+                            int hid = *it;
+                            pthread_create(&off_t, NULL, notify_offline, &hid);
+                            // TODO host is going offline
+                        }
                     }
+                    free(buf);
                 }
-                free(buf);
             }
         }
         PRINTD(1, 0, "Receive thread is terminating");

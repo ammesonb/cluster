@@ -75,8 +75,20 @@ namespace Cluster {/*{{{*/
     int debug = 2, interval, dead;
     char *email = NULL, *crit_files = NULL, *crit_dirs = NULL;/*}}}*/
 
+    cfg_opt_t config[] = {
+        CFG_SIMPLE_INT("beat_interval", &interval),
+        CFG_SIMPLE_INT("dead_time", &dead),
+        CFG_SIMPLE_STR("email", &email),
+        CFG_SIMPLE_BOOL("text_alerts", &text),
+        CFG_SIMPLE_INT("verbosity", &debug),
+        CFG_SIMPLE_STR("critical_files", &crit_files),
+        CFG_SIMPLE_STR("critical_dirs", &crit_dirs),
+        CFG_END()
+    };
+
     map<int, Host> host_list;
     map<int, Service> serv_list;
+    vector<int> hosts_busy;
     vector<int> hosts_online;
     vector<int> running_services;
     map<int, vector<string>> send_message_queue;
@@ -127,7 +139,9 @@ namespace Cluster {/*{{{*/
         PRINTD(4, 0, "Queueing keepalive to %lu hosts", hosts_online.size());
         for (auto it = hosts_online.begin(); it != hosts_online.end(); it++) {
             Host h = host_list[*it];
-            send_message_queue[h.id].push_back(ping_msg);
+            // If host is not otherwise occupied, queue keepalive
+            if (std::find(hosts_busy.begin(), hosts_busy.end(), *it) == hosts_busy.end())
+                send_message_queue[h.id].push_back(ping_msg);
         }
     }/*}}}*/
 }/*}}}*/
@@ -139,16 +153,7 @@ int main(int argc, char *argv[]) {/*{{{*/
     gettimeofday(&init_start_tv, NULL);
     PRINTD(1, 0, "Loading config file");
     // Load configuration /*{{{*/
-    cfg_opt_t config[] = {
-        CFG_SIMPLE_INT("beat_interval", &interval),
-        CFG_SIMPLE_INT("dead_time", &dead),
-        CFG_SIMPLE_STR("email", &email),
-        CFG_SIMPLE_BOOL("text_alerts", &text),
-        CFG_SIMPLE_INT("verbosity", &debug),
-        CFG_SIMPLE_STR("critical_files", &crit_files),
-        CFG_SIMPLE_STR("critical_dirs", &crit_dirs),
-        CFG_END()
-    };
+    
 
     cfg = cfg_init(config, 0);
     cfg_parse(cfg, "cluster.conf");
@@ -349,7 +354,7 @@ int main(int argc, char *argv[]) {/*{{{*/
             }
         }/*}}}*/
 
-        sleep(interval / 2);
+        usleep((float)interval / 2.0 * 100000.0);
     }/*}}}*/
 
     PRINTD(1, 0, "Exiting main loop");
