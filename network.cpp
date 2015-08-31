@@ -100,6 +100,10 @@ namespace Cluster {
         return string((char*)outbuf, outlen);
     }/*}}}*/
 
+    bool rem_true(string s) {
+        return true;
+    }
+
     void* sender_loop(void *arg) {/*{{{*/
         int hostid = *((int*)arg);
         while (keep_running) {
@@ -108,14 +112,16 @@ namespace Cluster {
             for (auto it = send_message_queue[hostid].begin();
                       it != send_message_queue[hostid].end(); it++) {
                 string msg = *it;
-                PRINTD(5, 1, "Sending %s to all hosts", msg.c_str());
-                for (auto it2 = hosts_online.begin(); it2 != hosts_online.end(); it2++) {
-                    Host h = host_list[*it2];
-                    string ctxt = enc_msg(msg, h.password);
-                    // TODO Does this block?
-                    send(h.socket, ctxt.c_str(), ctxt.length(), 0);
-                }
+                PRINTD(5, 1, "Sending %s to %d", msg.c_str(), hostid);
+                string ctxt = string(msg); //enc_msg(msg, h.password);
+                // TODO Does this block?
+                send(host_list[hostid].socket, ctxt.c_str(), ctxt.length(), 0);
             }
+            send_message_queue[hostid].erase(
+                std::remove_if(send_message_queue[hostid].begin(),
+                               send_message_queue[hostid].end(), rem_true),
+                               send_message_queue[hostid].end()
+                                            );
         }
         PRINTD(1, 0, "Sender for host %s terminating", host_list[hostid].address.c_str());
         free(arg);
@@ -129,7 +135,7 @@ namespace Cluster {
                 char *buf = create_str(1024);
                 if (recv(host_list[*it].socket, buf, 1024, MSG_DONTWAIT) > 0) {
                     host_list[*it].last_msg = get_cur_time();
-                    string msg = dec_msg(string(buf, 0, strlen(buf)), host_list[int_id].password);
+                    string msg = string(buf, 0, strlen(buf)); //dec_msg(string(buf, 0, strlen(buf)), host_list[int_id].password);
                     if (std::to_string(*it).append("-ping").compare(msg) == 0) {PRINTD(4, 0, "Got ping message from %d", *it); continue;}
                     start_split(msg, "--");
                     string command = get_split();
@@ -184,7 +190,7 @@ namespace Cluster {
             start_split(hostdata, "--");
             int level = get_split_level();
             int hostid = stoi(get_split());
-            string hostname = dec_msg(get_split(), host_list.at(hostid).password);
+            string hostname = get_split(); //dec_msg(get_split(), host_list.at(hostid).password);
             end_split(level);
             PRINTD(3, 0, "Got attempted host connection from ID %d: %s", hostid, hostname.c_str());
             string ip;
@@ -288,7 +294,7 @@ namespace Cluster {
         host_list[hostid].online = true;
         hosts_online.push_back(client.id);
         host_list[hostid].socket = sock;
-        string msg = enc_msg(host_list[int_id].address, host_list[int_id].password);
+        string msg = string(host_list[int_id].address); //enc_msg(host_list[int_id].address, host_list[int_id].password);
         string data;
         data.reserve(my_id.length() + 3 + msg.length());
         data.append(my_id).append("--").append(msg);
