@@ -310,11 +310,10 @@ int main(int argc, char *argv[]) {/*{{{*/
             queue_keepalive();
         }/*}}}*/
 
-        // TODO fix timing on this
         // Check key update interval/*{{{*/
-        // Should be once an hour at 3 minute intervals based off of integer ID for host
+        // Should update between 3 * host_num and 3 * (host_num + 1) once per hour
         long seconds = get_cur_time() % 3600;
-        if ((3 * 60 * int_id - 10) < seconds && seconds < (3 * 60 * int_id + 10) && (last_key_update - get_cur_time() > 1800)) {
+        if ((3 * 60 * int_id) < seconds && seconds < (3 * 60 * (int_id + 1)) && (last_key_update - get_cur_time() > 1800)) {
             time_t now = time(0);
             struct tm *tmn = localtime(&now);
             char *buf = create_str(100);
