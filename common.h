@@ -2,15 +2,28 @@
 #define CLUSTER_COMMON_H
 
 #define   PRINTD(level, indent, d_str, args...) if (debug >= level) {\
-          PRINTD_INDENT_LEVEL = indent; printf("%sDEBUG%d: ", string(indent * 4, ' ').c_str(), level);\
+          time_t printd_now = time(0);\
+          char *printd_time = asctime(localtime(&printd_now));\
+          printd_time[strlen(printd_time) - 1] = '\0';\
+          PRINTD_INDENT_LEVEL = indent; printf("%s %sDEBUG%d: ", printd_time, string(indent * 4, ' ').c_str(), level);\
           printf(d_str, ##args); printf("\n");}
 #define   PRINTDI(level, d_str, args...) if (debug >= level) {\
-          printf("%sDEBUG%d: ", string(PRINTD_INDENT_LEVEL * 4, ' ').c_str(), level);\
+          time_t printd_now = time(0);\
+          char *printd_time = asctime(localtime(&printd_now));\
+          printd_time[strlen(printd_time) - 1] = '\0';\
+          printf("%s %sDEBUG%d: ", printd_time, string(PRINTD_INDENT_LEVEL * 4, ' ').c_str(), level);\
           printf(d_str, ##args); printf("\n");}
 #define   PRINTDR(level, indent_offset, d_str, args...) if (debug >= level) {\
-          printf("%sDEBUG%d: ", string((PRINTD_INDENT_LEVEL + indent_offset) * 4, ' ').c_str(), level);\
+          time_t printd_now = time(0);\
+          char *printd_time = asctime(localtime(&printd_now));\
+          printd_time[strlen(printd_time) - 1] = '\0';\
+          printf("%s %sDEBUG%d: ", printd_time, string((PRINTD_INDENT_LEVEL + indent_offset) * 4, ' ').c_str(), level);\
           printf(d_str, ##args); printf("\n");}
-#define   DIE(str, args...) fprintf(stderr, " FATAL: " str "\n", ##args); exit(1);
+#define   DIE(str, args...) \
+          time_t printd_now = time(0);\
+          char *printd_time = asctime(localtime(&printd_now));\
+          printd_time[strlen(printd_time) - 1] = '\0';\
+          fprintf(stderr, "%s  FATAL: " str "\n", printd_time, ##args); exit(1);
 #define   STRLITFIX(str) (char*)string(str).c_str()
 
 #define DBUS_PATH "/com/bammeson/cluster"
