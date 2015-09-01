@@ -153,6 +153,7 @@ namespace Cluster {
             PRINTD(1, 0, "File transfer of %s from %d failed", fname.c_str(), hid);
             send(host_list[hid].socket, "FAIL", 4, 0);
             free(arg);
+            hosts_busy.erase(std::remove(hosts_busy.begin(), hosts_busy.end(), hid), hosts_busy.end());
             return NULL;
         }
         end_split(level);
@@ -179,6 +180,7 @@ namespace Cluster {
         }
 
         free(arg);
+        hosts_busy.erase(std::remove(hosts_busy.begin(), hosts_busy.end(), hid), hosts_busy.end());
         return NULL;
     }/*}}}*/
 
