@@ -136,16 +136,15 @@ namespace Cluster {
             serv_list[serv_num] = service;
             // For each host this service has registered
             // Add this service to its list of services
-            for (auto it = serv_hosts.begin(); it != serv_hosts.end(); it++)
+            ITERVECTOR(serv_hosts, it)
                 host_services[(*it).id].push_back(service);
             serv_num++;
         }
 
         // Once all services are parsed, attribute services to hosts
         PRINTD(5, 3, "Adding services to hosts");
-        for (auto it = host_services.begin(); it != host_services.end(); it++) {
+        ITERVECTOR(host_services, it)
             host_list[(*it).first].services = (*it).second;
-        }
     } /*}}}*/
 
     char* create_str(int length) {/*{{{*/
@@ -156,7 +155,7 @@ namespace Cluster {
 
     void check_services(int hostid, bool online) {/*{{{*/
         Host h = host_list[int_id];
-        for (auto it = h.services.begin(); it != h.services.end(); it++) {
+        ITERVECTOR(h.services, it) {
             Service s = *it;
             s.start_stop(hostid, online);
         }

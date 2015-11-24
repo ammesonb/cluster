@@ -110,11 +110,13 @@ namespace Cluster {
     void* sender_loop(void *arg) {/*{{{*/
         int hostid = *((int*)arg);
         while (keep_running) {
-            usleep((float)interval / 2.0 * 100000.0);
+            usleep((float)interval / 3.0 * 100000.0);
+            if (std::find(hosts_busy.begin(), hosts_busy.end(), hostid) == hosts_busy.end()) {
+                PRINTD(4, 0, "Host %d is busy", hostid);
+            }
             PRINTD(5, 0, "Checking message queue for %s", host_list[hostid].address.c_str());
             // TODO need some sort of message delimiter
-            for (auto it = send_message_queue[hostid].begin();
-                      it != send_message_queue[hostid].end(); it++) {
+            ITERVECTOR(send_message_queue[hostid], it) {
                 string msg = *it;
                 PRINTD(5, 1, "Sending %s to %d", msg.c_str(), hostid);
                 string ctxt = enc_msg(msg, host_list[hostid].password);
@@ -132,12 +134,25 @@ namespace Cluster {
         return NULL;
     }/*}}}*/
 
+    void queue_msg(string msg) {/*{{{*/
+        ITERVECTOR(hosts_online, it) {
+            if (*it == int_id) continue;
+            send_message_queue[*it].push_back(msg);
+        }
+    }/*}}}*/
+
+    void* send_file(string path) {
+        queue_msg(string("fs").append("--").append(my_id));
+        return NULL;
+    }
+
     void* recv_file(void *arg) {/*{{{*/
         int hid = *((int*)arg);
         hosts_busy.push_back(hid);
         char *buf = create_str(1024);
         PRINTD(4, 0, "Waiting to receive filedata from %d", hid);
         while (recv(host_list[hid].socket, buf, 1024, MSG_DONTWAIT) <= 0) usleep(250000);
+        host_list[hid].last_msg = get_cur_time();
         string fdata = string(buf, 0, strlen(buf));
         int level = get_split_level();
         start_split(fdata, "::");
@@ -161,6 +176,7 @@ namespace Cluster {
         send(host_list[hid].socket, "OK", 2, 0);
         char *data = create_str(dlen);
         while (recv(host_list[hid].socket, buf, dlen, MSG_DONTWAIT) <= 0) usleep(250000);
+        host_list[hid].last_msg = get_cur_time();
         ofstream ofile;
         ofile.open(STRLITFIX(fname.c_str()));
         ofile << data << std::endl;
@@ -186,8 +202,8 @@ namespace Cluster {
 
     void* recv_loop(void *arg) {/*{{{*/
         while (keep_running) {
-            usleep((float)interval / 2.0 * 100000.0);
-            for (auto it = hosts_online.begin(); it != hosts_online.end(); it++) {
+            usleep((float)interval / 3.0 * 100000.0);
+            ITERVECTOR(hosts_online, it) {
                 if (std::find(hosts_busy.begin(), hosts_busy.end(), *it) == hosts_busy.end()) {
                     char *buf = create_str(1024);
                     if (recv(host_list[*it].socket, buf, 1024, MSG_DONTWAIT) > 0) {

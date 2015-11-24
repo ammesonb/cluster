@@ -76,13 +76,13 @@ namespace Cluster {/*{{{*/
     char *email = NULL, *crit_files = NULL, *crit_dirs = NULL;/*}}}*/
 
     cfg_opt_t config[] = {
-        CFG_SIMPLE_INT("beat_interval", &interval),
-        CFG_SIMPLE_INT("dead_time", &dead),
-        CFG_SIMPLE_STR("email", &email),
-        CFG_SIMPLE_BOOL("text_alerts", &text),
-        CFG_SIMPLE_INT("verbosity", &debug),
-        CFG_SIMPLE_STR("critical_files", &crit_files),
-        CFG_SIMPLE_STR("critical_dirs", &crit_dirs),
+        CFG_SIMPLE_INT(STRLITFIX("beat_interval"), &interval),
+        CFG_SIMPLE_INT(STRLITFIX("dead_time"), &dead),
+        CFG_SIMPLE_STR(STRLITFIX("email"), &email),
+        CFG_SIMPLE_BOOL(STRLITFIX("text_alerts"), &text),
+        CFG_SIMPLE_INT(STRLITFIX("verbosity"), &debug),
+        CFG_SIMPLE_STR(STRLITFIX("critical_files"), &crit_files),
+        CFG_SIMPLE_STR(STRLITFIX("critical_dirs"), &crit_dirs),
         CFG_END()
     };
 
@@ -137,11 +137,9 @@ namespace Cluster {/*{{{*/
 
     void queue_keepalive() {/*{{{*/
         PRINTD(4, 0, "Queueing keepalive to %lu hosts", hosts_online.size());
-        for (auto it = hosts_online.begin(); it != hosts_online.end(); it++) {
+        ITERVECTOR(hosts_online, it) {
             Host h = host_list[*it];
-            // If host is not otherwise occupied, queue keepalive
-            if (std::find(hosts_busy.begin(), hosts_busy.end(), *it) == hosts_busy.end())
-                send_message_queue[h.id].push_back(ping_msg);
+            send_message_queue[h.id].push_back(ping_msg);
         }
     }/*}}}*/
 }/*}}}*/
@@ -201,7 +199,7 @@ int main(int argc, char *argv[]) {/*{{{*/
         dir = trim(get_split());
     }
 
-    for (auto it = serv_list.begin(); it != serv_list.end(); it++) {
+    ITERVECTOR(serv_list, it) {
         Service s = (*it).second;
         string dir = string("/home/brett/Programming/cluster/").append(s.name).append("/");
         vector<string> f = get_directory_files((char*)dir.c_str());
@@ -209,7 +207,7 @@ int main(int argc, char *argv[]) {/*{{{*/
     }/*}}}*/
 
     PRINTD(3, 1, "Getting sync'ed file data");/*{{{*/
-    for (auto it = sync_files.begin(); it != sync_files.end(); it++) {
+    ITERVECTOR(sync_files, it) {
         string name = (string)*it;
         sync_checksums[name] = hash_file((char*)name.c_str());
         sync_timestamps[name] = get_file_mtime((char*)name.c_str());
@@ -252,7 +250,7 @@ int main(int argc, char *argv[]) {/*{{{*/
     start_accept_thread(port);
 
     PRINTD(3, 1, "Attempting to connect to all hosts");
-    for (auto it = host_list.begin(); it != host_list.end(); it++) {
+    ITERVECTOR(host_list, it) {
         Host h = (*it).second;
         if (h.id == int_id) continue;
         PRINTD(3, 2, "Connecting to host %s", h.address.c_str());
@@ -285,7 +283,7 @@ int main(int argc, char *argv[]) {/*{{{*/
         vector<int> now_offline;
         // Check that all hosts are actually online/*{{{*/
         if (hosts_online.size() > 0) {
-            for (auto it = hosts_online.begin(); it != hosts_online.end(); it++) {
+            ITERVECTOR(hosts_online, it) {
                 Host h = host_list[*it];
                 if (get_cur_time() - h.last_msg > dead) {
                     if (!verify_connectivity()) {
@@ -304,8 +302,8 @@ int main(int argc, char *argv[]) {/*{{{*/
         }
 
         if (now_offline.size() > 0) {
-            for (auto it = now_offline.begin(); it != now_offline.end(); it++)
-            hosts_online.erase(std::remove(hosts_online.begin(), hosts_online.end(), *it), hosts_online.end());
+            ITERVECTOR(now_offline, it)
+                hosts_online.erase(std::remove(hosts_online.begin(), hosts_online.end(), *it), hosts_online.end());
         }/*}}}*/
 
         // Check keepalive timer/*{{{*/
@@ -345,7 +343,7 @@ int main(int argc, char *argv[]) {/*{{{*/
         }/*}}}*/
 
         // Check file timestamps /*{{{*/
-        for (auto it = sync_files.begin(); it != sync_files.end(); it++) {
+        ITERVECTOR(sync_files, it) {
             string name = *it;
             if (get_file_mtime((char*)name.c_str()) != sync_timestamps[name]) {
                 PRINTD(3, 0, "Detected change in file %s", name.c_str());
