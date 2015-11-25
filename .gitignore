@@ -1,2 +1,10 @@
 commit.sh
 cluster.out
+cluster.conf
+hosts
+services
+legacy
+emailmonitor
+gmailmonitor
+pidginmonitor
+test
