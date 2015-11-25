@@ -303,7 +303,7 @@ int main(int argc, char *argv[]) {/*{{{*/
 
         if (now_offline.size() > 0) {
             ITERVECTOR(now_offline, it)
-                hosts_online.erase(std::remove(hosts_online.begin(), hosts_online.end(), *it), hosts_online.end());
+                hosts_online.erase(std::remove(VECTORFIND(hosts_online, *it)), hosts_online.end());
         }/*}}}*/
 
         // Check keepalive timer/*{{{*/

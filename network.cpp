@@ -112,11 +112,10 @@ namespace Cluster {
         int hostid = *((int*)arg);
         while (keep_running) {
             usleep((float)interval / 3.0 * 100000.0);
-            if (std::find(hosts_busy.begin(), hosts_busy.end(), hostid) == hosts_busy.end()) {
+            if (std::find(VECTORFIND(hosts_busy, hostid)) == hosts_busy.end()) {
                 PRINTD(4, 0, "Host %d is busy", hostid);
             }
             PRINTD(5, 0, "Checking message queue for %s", host_list[hostid].address.c_str());
-            // TODO need some sort of message delimiter
             ITERVECTOR(send_message_queue[hostid], it) {
                 string msg = *it;
                 PRINTD(5, 1, "Sending %s to %d", msg.c_str(), hostid);
@@ -125,9 +124,9 @@ namespace Cluster {
                 send(host_list[hostid].socket, ctxt.c_str(), ctxt.length(), 0);
             }
             send_message_queue[hostid].erase(
-                std::remove_if(send_message_queue[hostid].begin(),
-                               send_message_queue[hostid].end(), rem_true),
-                               send_message_queue[hostid].end()
+                std::remove_if(VECTORFIND(send_message_queue[hostid],
+                                          rem_true)),
+                send_message_queue[hostid].end()
                                             );
         }
         PRINTD(1, 0, "Sender for host %s terminating", host_list[hostid].address.c_str());
@@ -138,7 +137,7 @@ namespace Cluster {
     void queue_msg(string msg) {/*{{{*/
         ITERVECTOR(hosts_online, it) {
             if (*it == int_id) continue;
-            send_message_queue[*it].push_back(msg);
+            send_message_queue[*it].push_back(msg.append(MSG_DELIM));
         }
     }/*}}}*/
 
@@ -146,8 +145,8 @@ namespace Cluster {
         // TODO verify this works
         queue_msg(string("fs").append("--").append(my_id));
         string fdata = read_file((char*)path.c_str());
-        // Length of IV + data
-        int length = 32 + path.length();
+        // Length of IV + data + message delimiter
+        int length = 32 + path.length() + 5;
         // PKCS7 padding
         length += 16 - (length % 16);
         // Base64 encoding
@@ -201,7 +200,7 @@ namespace Cluster {
             PRINTD(1, 0, "File transfer of %s from %d failed", fname.c_str(), hid);
             send(host_list[hid].socket, "FAIL", 4, 0);
             free(arg);
-            hosts_busy.erase(std::remove(hosts_busy.begin(), hosts_busy.end(), hid), hosts_busy.end());
+            hosts_busy.erase(std::remove(VECTORFIND(hosts_busy, hid)), hosts_busy.end());
             return NULL;
         }
         end_split(level);
@@ -229,7 +228,7 @@ namespace Cluster {
         }
 
         free(arg);
-        hosts_busy.erase(std::remove(hosts_busy.begin(), hosts_busy.end(), hid), hosts_busy.end());
+        hosts_busy.erase(std::remove(VECTORFIND(hosts_busy, hid)), hosts_busy.end());
         return NULL;
     }/*}}}*/
 
@@ -237,8 +236,9 @@ namespace Cluster {
         while (keep_running) {
             usleep((float)interval / 3.0 * 100000.0);
             ITERVECTOR(hosts_online, it) {
-                if (std::find(hosts_busy.begin(), hosts_busy.end(), *it) == hosts_busy.end()) {
+                if (std::find(VECTORFIND(hosts_busy, *it)) == hosts_busy.end()) {
                     char *buf = create_str(1024);
+                    // TODO need to parse this using message delimiter, able to cut off and resume later -- read one byte at a time maybe? efficiency?
                     if (recv(host_list[*it].socket, buf, 1024, MSG_DONTWAIT) > 0) {
                         host_list[*it].last_msg = get_cur_time();
                         string msg = dec_msg(string(buf, 0, strlen(buf)), host_list[int_id].password);
@@ -273,7 +273,7 @@ namespace Cluster {
         PRINTD(2, 0, "Host %d is going offline", *hid);
         Host h = host_list[*hid];
         h.online = false;
-        hosts_online.erase(std::remove(hosts_online.begin(), hosts_online.end(), *hid), hosts_online.end());
+        hosts_online.erase(std::remove(VECTORFIND(hosts_online, *hid)), hosts_online.end());
         check_services(*hid, false);
         return NULL;
     }/*}}}*/

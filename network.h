@@ -3,6 +3,8 @@
 
 #include "host.h"
 
+#define MSG_DELIM "#EOM#"
+
 namespace Cluster {
     bool verify_connectivity();
 

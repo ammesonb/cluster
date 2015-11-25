@@ -8,7 +8,7 @@ namespace Cluster {
     // Online is true if a host coming online prompted the function,
     // false if a host dropped offline
     void Service::start_stop(int hostid, bool online) {/*{{{*/
-        bool running = (std::find(running_services.begin(), running_services.end(), id) != running_services.end());
+        bool running = (std::find(VECTORFIND(running_services, id)) != running_services.end());
         // If this service is running and a host dropped offline, do nothing
         if (running && !online) return;
         // If the service is not running and a host came online, do nothing
@@ -16,7 +16,7 @@ namespace Cluster {
 
         // If the service is running and another host comes online, check if they have priority
         else if (running && online) {
-            for (auto it = hosts.begin(); it != hosts.end(); it++) {
+            ITERVECTOR(hosts, it) {
                 // If the first element found is me, then I should keep running the service
                 if ((*it).id == int_id) return;
                 else if ((*it).id == hostid) {stop(); return;}
@@ -26,7 +26,7 @@ namespace Cluster {
         // If the service is not running and a host drops offline, check if we have priority
         else if (!running && !online) {
             // Essentially, just need to find the first online host in the list, or maybe it's me
-            for (auto it = hosts.begin(); it != hosts.end(); it++) {
+            ITERVECTOR(hosts, it) {
                 if ((*it).id == int_id) {start(); return;}
                 if (host_list[(*it).id].online) return;
             }

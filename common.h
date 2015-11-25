@@ -27,6 +27,7 @@
 #define   STRLITFIX(str) (char*)string(str).c_str()
 
 #define ITERVECTOR(arr, var) for (auto var = arr.begin(); var != arr.end(); var++)
+#define VECTORFIND(arr, var) arr.begin(), arr.end(), var
 #define DBUS_PATH "/com/bammeson/cluster"
 #define DBUS_NAME "com.bammeson.cluster"
 #define DBUS_HANDLER_PATH "/com/bammeson/clusterhandler"
