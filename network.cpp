@@ -18,6 +18,7 @@
 #include "network.h"
 
 using std::ofstream;
+using std::to_string;
 
 namespace Cluster {
     int acceptfd;
@@ -142,7 +143,39 @@ namespace Cluster {
     }/*}}}*/
 
     void* send_file(string path) {
+        // TODO verify this works
         queue_msg(string("fs").append("--").append(my_id));
+        string fdata = read_file((char*)path.c_str());
+        // Length of IV + data
+        int length = 32 + path.length();
+        // PKCS7 padding
+        length += 16 - (length % 16);
+        // Base64 encoding
+        length = (length / 3) * 4 + 4;
+        ITERVECTOR(hosts_online, it) {
+            // TODO add file permissions here?
+            if (*it == int_id) continue;
+            PRINTD(4, 0, "Sending file %s to host %d", path.c_str(), *it);
+            string metadata = path.append("::").append(to_string(length));
+            string ctxt = enc_msg(metadata, host_list[*it].password);
+            PRINTD(5, 1, "Sending metadata");
+            send(host_list[*it].socket, ctxt.c_str(), ctxt.length(), 0);
+            char *buf = create_str(8);
+            recv(host_list[*it].socket, buf, 8, 0);
+            if (strcmp(buf, "FAIL") == 0) {
+                // TODO what should happen?
+                PRINTD(1, 0, "Failed to send file %s to host %d", path.c_str(), *it);
+                return NULL;
+            } else if (strcmp(buf, "OK") != 0) {
+                // TODO um....
+                PRINTD(1, 0, "Received unknown response in sending file %s to host %d", path.c_str(), *it);
+                return NULL;
+            }
+            free(buf);
+
+            ctxt = enc_msg(fdata, host_list[*it].password);
+            send(host_list[*it].socket, ctxt.c_str(), ctxt.length(), 0);
+        }
         return NULL;
     }
 
