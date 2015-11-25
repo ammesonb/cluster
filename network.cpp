@@ -120,8 +120,9 @@ namespace Cluster {
                 string msg = *it;
                 PRINTD(5, 1, "Sending %s to %d", msg.c_str(), hostid);
                 string ctxt = enc_msg(msg, host_list[hostid].password);
-                // TODO Does this block?
+                // This blocks
                 send(host_list[hostid].socket, ctxt.c_str(), ctxt.length(), 0);
+                PRINTDI(5, "Sent");
             }
             send_message_queue[hostid].erase(
                 std::remove_if(VECTORFIND(send_message_queue[hostid],
@@ -257,7 +258,6 @@ namespace Cluster {
                             pthread_t off_t;
                             int hid = *it;
                             pthread_create(&off_t, NULL, notify_offline, &hid);
-                            // TODO host is going offline
                         }
                     }
                     free(buf);
@@ -275,6 +275,7 @@ namespace Cluster {
         h.online = false;
         hosts_online.erase(std::remove(VECTORFIND(hosts_online, *hid)), hosts_online.end());
         check_services(*hid, false);
+        // TODO will this work with file sync? Such as pidgin logs
         return NULL;
     }/*}}}*/
 

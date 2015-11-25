@@ -289,6 +289,8 @@ int main(int argc, char *argv[]) {/*{{{*/
                     if (!verify_connectivity()) {
                         PRINTD(1, 0, "I am offline!");
                         // TODO do something here
+                        // or maybe not? If you're offline, just stop your current services?
+                        // What about unsychronized files?
                         break;
                     }
                     time_t l = h.last_msg;
