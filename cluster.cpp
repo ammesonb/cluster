@@ -76,13 +76,13 @@ namespace Cluster {/*{{{*/
     char *email = NULL, *crit_files = NULL, *crit_dirs = NULL;/*}}}*/
 
     cfg_opt_t config[] = {
-        CFG_SIMPLE_INT("beat_interval", &interval),
-        CFG_SIMPLE_INT("dead_time", &dead),
-        CFG_SIMPLE_STR("email", &email),
-        CFG_SIMPLE_BOOL("text_alerts", &text),
-        CFG_SIMPLE_INT("verbosity", &debug),
-        CFG_SIMPLE_STR("critical_files", &crit_files),
-        CFG_SIMPLE_STR("critical_dirs", &crit_dirs),
+        CFG_SIMPLE_INT((char*)"beat_interval", &interval),
+        CFG_SIMPLE_INT((char*)"dead_time", &dead),
+        CFG_SIMPLE_STR((char*)"email", &email),
+        CFG_SIMPLE_BOOL((char*)"text_alerts", &text),
+        CFG_SIMPLE_INT((char*)"verbosity", &debug),
+        CFG_SIMPLE_STR((char*)"critical_files", &crit_files),
+        CFG_SIMPLE_STR((char*)"critical_dirs", &crit_dirs),
         CFG_END()
     };
 
