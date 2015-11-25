@@ -47,8 +47,9 @@ namespace Cluster {
     }/*}}}*/
 
     string enc_msg(string msg, string passwd) {/*{{{*/
-        // TODO what if msg is larger than this?
-        unsigned char outbuf[4096];
+        // Keep an extra 10% of space available for padding
+        // and at least 16 bytes for PKCS7 padding
+        unsigned char outbuf[int(msg.length() * 1.1) + 16];
         int outlen, secondlen;
 
         unsigned char iv[32];
@@ -75,8 +76,9 @@ namespace Cluster {
     }/*}}}*/
 
     string dec_msg(string msg, string passwd) {/*{{{*/
-        // TODO what is msg is larger than this?
-        unsigned char outbuf[4096];
+        // Keep an extra 10% of space available for padding
+        // and at least 16 bytes for PKCS7 padding
+        unsigned char outbuf[int(msg.length() * 1.1) + 16];
         int outlen, secondlen;
 
         PRINTDI(5, "Decrypt using IV %s", msg.substr(0, 64).c_str());
