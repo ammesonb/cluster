@@ -142,7 +142,7 @@ namespace Cluster {
         }
     }/*}}}*/
 
-    void* send_file(string path) {
+    void* send_file(string path) {/*{{{*/
         // TODO verify this works
         queue_msg(string("fs").append("--").append(my_id));
         string fdata = read_file((char*)path.c_str());
@@ -177,7 +177,7 @@ namespace Cluster {
             send(host_list[*it].socket, ctxt.c_str(), ctxt.length(), 0);
         }
         return NULL;
-    }
+    }/*}}}*/
 
     void* recv_file(void *arg) {/*{{{*/
         int hid = *((int*)arg);

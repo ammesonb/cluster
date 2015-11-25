@@ -11,6 +11,8 @@ namespace Cluster {
     string enc_msg(string msg, string passwd);
     string dec_msg(string msg, string passwd);
 
+    void* send_file(string path);
+
     void* recv_loop(void *arg);
     void* notify_offline(void *arg);
     void start_accept_thread(int port);

@@ -348,7 +348,7 @@ int main(int argc, char *argv[]) {/*{{{*/
             if (get_file_mtime((char*)name.c_str()) != sync_timestamps[name]) {
                 PRINTD(3, 0, "Detected change in file %s", name.c_str());
                 sync_timestamps[name] = get_file_mtime((char*)name.c_str());
-                // TODO push updated file
+                send_file(name);
             }
         }/*}}}*/
 
