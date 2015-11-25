@@ -240,9 +240,16 @@ namespace Cluster {
             usleep((float)interval / 3.0 * 100000.0);
             ITERVECTOR(hosts_online, it) {
                 if (std::find(VECTORFIND(hosts_busy, *it)) == hosts_busy.end()) {
+                    // Read all available data
+                    string data;
                     char *buf = create_str(1024);
-                    // TODO need to parse this using message delimiter, able to cut off and resume later -- read one byte at a time maybe? efficiency?
-                    if (recv(host_list[*it].socket, buf, 1024, MSG_DONTWAIT) > 0) {
+                    while (recv(host_list[*it].socket, buf, 1024, MSG_DONTWAIT) > 0) {
+                        data.append(buf);
+                        memset(buf, '\0', 1024);
+                    }
+                    
+                    // If data is actually found
+                    if (data.length() > 0) {
                         host_list[*it].last_msg = get_cur_time();
                         string msg = dec_msg(string(buf, 0, strlen(buf)), host_list[int_id].password);
                         if (std::to_string(*it).append("-ping").compare(msg) == 0) {PRINTD(4, 0, "Got ping message from %d", *it); continue;}
