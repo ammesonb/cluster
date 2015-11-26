@@ -23,6 +23,7 @@ namespace Cluster {
             bool dynamic;
             vector<Service> services;
             string password;
+            bool authenticated = false;
 
             // TODO since identifier is decrypted, check for empty string for failure case
             // TODO failed fqdn->ip mapping should only disallow config updates, if decryption works

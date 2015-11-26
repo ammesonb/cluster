@@ -421,6 +421,7 @@ namespace Cluster {
         host_list[hostid].online = true;
         hosts_online.push_back(client.id);
         host_list[hostid].socket = sock;
+        // TODO this will fail if I was offline past a key change
         string msg = enc_msg(host_list[int_id].address, host_list[int_id].password);
         string data;
         data.reserve(my_id.length() + 3 + msg.length());
@@ -432,6 +433,8 @@ namespace Cluster {
             PRINTDR(1, 1, "Successfully connected to %s", client.address.c_str());
         } else {
             PRINTD(1, 0, "Failed to authenticate with %s, sent %s and received %s", client.address.c_str(), data.c_str(), buf);
+            update_dns();
+            // TODO Should try to authenticate again somehow?
         }
 
         host_list[hostid].last_msg = get_cur_time();
@@ -440,6 +443,11 @@ namespace Cluster {
         *hid = hostid;
         pthread_create(&sender_thread, NULL, sender_loop, hid);
         check_services(client.id, true);
+    }/*}}}*/
+
+    void update_dns() {/*{{{*/
+        PRINTD(3, 0, "Updating DNS records");
+        // TODO this
     }/*}}}*/
 
     void set_sock_opts(int sockfd) { /*{{{*/

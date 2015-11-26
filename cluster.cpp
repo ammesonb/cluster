@@ -245,6 +245,9 @@ int main(int argc, char *argv[]) {/*{{{*/
         DIE("I am not online");
     }
 
+    // Ensure DNS records are up to date
+    update_dns();
+
     start_accept_thread(port);
 
     PRINTD(3, 1, "Attempting to connect to all hosts");

@@ -19,6 +19,7 @@ namespace Cluster {
     void* notify_offline(void *arg);
     void start_accept_thread(int port);
     void connect_to_host(int hostid);
+    void update_dns();
     void set_sock_opts(int fd);
 }
 #endif
