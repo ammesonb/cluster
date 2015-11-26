@@ -247,29 +247,36 @@ namespace Cluster {
                         data.append(buf);
                         memset(buf, '\0', 1024);
                     }
+
+                    free(buf);
                     
                     // If data is actually found
                     if (data.length() > 0) {
-                        host_list[*it].last_msg = get_cur_time();
-                        string msg = dec_msg(string(buf, 0, strlen(buf)), host_list[int_id].password);
-                        if (std::to_string(*it).append("-ping").compare(msg) == 0) {PRINTD(4, 0, "Got ping message from %d", *it); continue;}
-                        start_split(msg, "--");
-                        string command = get_split();
-                        PRINTD(4, 0, "Received command %s from host %d", command.c_str(), *it);
-                        if (command == "fs") {
-                            pthread_t file_thread;
-                            int *hid = (int*)malloc(sizeof(int*));
-                            *hid = *it;
-                            pthread_create(&file_thread, NULL, recv_file, hid);
-                        } else if (command == "dyn") {
-                            // TODO dynamic host
-                        } else if (command == "off") {
-                            pthread_t off_t;
-                            int hid = *it;
-                            pthread_create(&off_t, NULL, notify_offline, &hid);
+                        // TODO check this works
+                        start_split(data, MSG_DELIM);
+                        string msg = get_split();
+                        while (msg.length() > 0) {
+                            host_list[*it].last_msg = get_cur_time();
+                            msg = dec_msg(string(buf, 0, strlen(buf)), host_list[int_id].password);
+                            if (std::to_string(*it).append("-ping").compare(msg) == 0) {PRINTD(4, 0, "Got ping message from %d", *it); continue;}
+                            start_split(msg, "--");
+                            string command = get_split();
+                            PRINTD(4, 0, "Received command %s from host %d", command.c_str(), *it);
+                            if (command == "fs") {
+                                pthread_t file_thread;
+                                int *hid = (int*)malloc(sizeof(int*));
+                                *hid = *it;
+                                pthread_create(&file_thread, NULL, recv_file, hid);
+                            } else if (command == "dyn") {
+                                // TODO dynamic host
+                            } else if (command == "off") {
+                                pthread_t off_t;
+                                int hid = *it;
+                                pthread_create(&off_t, NULL, notify_offline, &hid);
+                            }
+                            msg = get_split();
                         }
                     }
-                    free(buf);
                 }
             }
         }
