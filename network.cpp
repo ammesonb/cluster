@@ -114,7 +114,7 @@ namespace Cluster {
         int hostid = *((int*)arg);
         while (keep_running) {
             usleep((float)interval / 3.0 * 100000.0);
-            if (std::find(VECTORFIND(hosts_busy, hostid)) == hosts_busy.end()) {
+            if (std::find(VECTORFIND(hosts_busy, hostid)) != hosts_busy.end()) {
                 PRINTD(4, 0, "Host %d is busy", hostid);
             }
             PRINTD(5, 0, "Checking message queue for %s", host_list[hostid].address.c_str());
