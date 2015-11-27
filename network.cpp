@@ -121,7 +121,7 @@ namespace Cluster {
             ITERVECTOR(send_message_queue[hostid], it) {
                 string msg = *it;
                 PRINTD(5, 1, "Sending %s to %d", msg.c_str(), hostid);
-                string ctxt = enc_msg(msg, host_list[hostid].password);
+                string ctxt = enc_msg(msg, host_list[hostid].password).append(MSG_DELIM);
                 // This blocks
                 send(host_list[hostid].socket, ctxt.c_str(), ctxt.length(), 0);
                 PRINTDI(5, "Sent");
@@ -140,7 +140,7 @@ namespace Cluster {
     void queue_msg(string msg) {/*{{{*/
         ITERVECTOR(hosts_online, it) {
             if (*it == int_id) continue;
-            send_message_queue[*it].push_back(msg.append(MSG_DELIM));
+            send_message_queue[*it].push_back(msg);
         }
     }/*}}}*/
 
