@@ -257,7 +257,7 @@ namespace Cluster {
                         start_split(data, MSG_DELIM);
                         string msg = get_split();
                         while (msg.length() > 0) {
-                            PRINTD(4, 0, "Found command with length %d", msg.length());
+                            PRINTD(4, 0, "Found command with length %lu", msg.length());
                             host_list[*it].last_msg = get_cur_time();
                             msg = dec_msg(msg, host_list[int_id].password);
                             if (std::to_string(*it).append("-ping").compare(msg) == 0) {PRINTD(4, 0, "Got ping message from %d", *it); continue;}
