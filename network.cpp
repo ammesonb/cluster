@@ -249,10 +249,10 @@ namespace Cluster {
                         usleep(10000);
                     }
                     free(buf);
-                    PRINTD(4, 0, "Received %lu bytes", data.length());
                     
                     // If data is actually found
                     if (data.length() > 0) {
+                        PRINTD(4, 0, "Received %lu bytes", data.length());
                         // TODO check this works
                         start_split(data, MSG_DELIM);
                         string msg = get_split();
@@ -260,7 +260,11 @@ namespace Cluster {
                             PRINTD(4, 0, "Found command with length %lu", msg.length());
                             host_list[*it].last_msg = get_cur_time();
                             msg = dec_msg(msg, host_list[int_id].password);
-                            if (std::to_string(*it).append("-ping").compare(msg) == 0) {PRINTD(4, 0, "Got ping message from %d", *it); continue;}
+                            if (std::to_string(*it).append("-ping").compare(msg) == 0) {
+                                PRINTD(4, 0, "Got ping message from %d", *it);
+                                msg = get_split();
+                                continue;
+                            }
                             start_split(msg, "--");
                             string command = get_split();
                             PRINTD(4, 0, "Received command %s from host %d", command.c_str(), *it);
