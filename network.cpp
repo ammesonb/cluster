@@ -246,9 +246,10 @@ namespace Cluster {
                     while (recv(host_list[*it].socket, buf, 1024, MSG_DONTWAIT) > 0) {
                         data.append(buf);
                         memset(buf, '\0', 1024);
+                        usleep(10000);
                     }
-
                     free(buf);
+                    PRINTD(4, 0, "Received %lu bytes", data.length());
                     
                     // If data is actually found
                     if (data.length() > 0) {

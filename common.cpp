@@ -288,7 +288,7 @@ namespace Cluster {
     }/*}}}*/
 
     string unhexlify(string data) {/*{{{*/
-        if (data.length() & 1) {PRINTD(1, 0, "Invalid length for unhexlify"); return string("");}
+        if (data.length() & 1) {PRINTD(1, 0, "Invalid length for unhexlify, got %lu", data.length()); return string("");}
         string out;
         out.reserve(data.length() / 2);
         for (int i = 0; i < data.length(); i += 2) {
