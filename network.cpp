@@ -146,7 +146,6 @@ namespace Cluster {
 
     void* send_file(string path) {/*{{{*/
         // TODO verify this works
-        queue_msg(string("fs").append("--").append(my_id));
         string fdata = read_file((char*)path.c_str());
         // Length of IV + data + message delimiter
         int length = 32 + path.length() + 5;
@@ -158,6 +157,15 @@ namespace Cluster {
             // TODO add file permissions here?
             if (*it == int_id) continue;
             PRINTD(4, 0, "Sending file %s to host %d", path.c_str(), *it);
+            // Inform receiver we are sending file
+            string info = string("fs").append("--").append(my_id).append(MSG_DELIM);
+            string cinfo = enc_msg(info, host_list[*it].password);
+            send(host_list[*it].socket, cinfo.c_str(), cinfo.length(), 0);
+            // Give receiver time to complete current set of commands and
+            // mark this host as busy to allow direct network communication
+            usleep(10000);
+
+            // Start sending file data
             string metadata = path.append("::").append(to_string(length));
             string ctxt = enc_msg(metadata, host_list[*it].password);
             PRINTD(5, 1, "Sending metadata");
