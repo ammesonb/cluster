@@ -205,6 +205,12 @@ int main(int argc, char *argv[]) {/*{{{*/
     }/*}}}*/
 
     PRINTD(3, 1, "Getting sync'ed file data");/*{{{*/
+    // TODO need to consider files that aren't on remote machine
+    // TODO really should use checksums since may have been overwritten while offline
+    // TODO prioritize files on online machines over offline?
+    // TODO need to store checksums after quit, maybe could use only when file modification state
+    // unknown?
+        // TODO would need protocol to check file checksums then
     ITERVECTOR(sync_files, it) {
         string name = (string)*it;
         sync_checksums[name] = hash_file((char*)name.c_str());
@@ -318,6 +324,7 @@ int main(int argc, char *argv[]) {/*{{{*/
 
         // Check key update interval/*{{{*/
         // Should update between 3 * host_num and 3 * (host_num + 1) once per hour
+        // TODO switch key updates to using TOTP to avoid offline issues
         long seconds = get_cur_time() % 3600;
         if ((3 * 60 * int_id) < seconds && seconds < (3 * 60 * (int_id + 1)) && (last_key_update - get_cur_time() > 1800)) {
             time_t now = time(0);
