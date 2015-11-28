@@ -32,7 +32,6 @@ namespace Cluster {
             }
         }
 
-
     }/*}}}*/
 
     void Service::start() {/*{{{*/
