@@ -274,9 +274,10 @@ namespace Cluster {
                                 continue;
                             }
                             start_split(msg, "--");
+                            int command_level = get_split_level();
                             string command = get_split();
                             PRINTD(4, 0, "Received command %s from host %d", command.c_str(), *it);
-                            if (command == "fs") {
+                            if (strcmp(command.c_str(), "fs") == 0) {
                                 pthread_t file_thread;
                                 int *hid = (int*)malloc(sizeof(int*));
                                 *hid = *it;
@@ -288,6 +289,7 @@ namespace Cluster {
                                 int hid = *it;
                                 pthread_create(&off_t, NULL, notify_offline, &hid);
                             }
+                            end_split(command_level);
                             msg = get_split();
                         }
                     }
