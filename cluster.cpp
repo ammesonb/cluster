@@ -298,6 +298,7 @@ int main(int argc, char *argv[]) {/*{{{*/
                         // TODO do something here
                         // or maybe not? If you're offline, just stop your current services?
                         // What about unsychronized files?
+                        // Exponential backoff? To 1 minute?
                         break;
                     }
                     time_t l = h.last_msg;

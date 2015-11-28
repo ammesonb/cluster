@@ -158,8 +158,8 @@ namespace Cluster {
             if (*it == int_id) continue;
             PRINTD(4, 0, "Sending file %s to host %d", path.c_str(), *it);
             // Inform receiver we are sending file
-            string info = string("fs").append("--").append(my_id).append(MSG_DELIM);
-            string cinfo = enc_msg(info, host_list[*it].password);
+            string info = string("fs").append("--").append(my_id);
+            string cinfo = enc_msg(info, host_list[*it].password).append(MSG_DELIM);
             send(host_list[*it].socket, cinfo.c_str(), cinfo.length(), 0);
             // Give receiver time to complete current set of commands and
             // mark this host as busy to allow direct network communication
@@ -265,7 +265,7 @@ namespace Cluster {
                         start_split(data, MSG_DELIM);
                         string msg = get_split();
                         while (msg.length() > 0) {
-                            PRINTD(4, 0, "Found command with length %lu", msg.length());
+                            PRINTD(5, 0, "Found command with length %lu", msg.length());
                             host_list[*it].last_msg = get_cur_time();
                             msg = dec_msg(msg, host_list[int_id].password);
                             if (std::to_string(*it).append("-ping").compare(msg) == 0) {
