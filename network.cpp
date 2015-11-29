@@ -262,7 +262,7 @@ namespace Cluster {
                     
                     // If data is actually found
                     if (data.length() > 0) {
-                        PRINTD(4, 0, "RECV", "Received %lu bytes", data.length());
+                        PRINTD(5, 0, "RECV", "Received %lu bytes", data.length());
                         // TODO check this works
                         start_split(data, MSG_DELIM);
                         string msg = get_split();
