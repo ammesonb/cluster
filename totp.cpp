@@ -20,12 +20,10 @@ namespace Cluster {
         data.append(strstr.str());
         unsigned char *hash = hmac_sha1((unsigned char*)pw.c_str(), pw.length(), (unsigned char*)data.c_str(), data.length());
         int offset = (hash[19] >> 4);
-        printf("%d\n", offset);
         int extract = 0;
         for (int i = offset; i < (offset + 4); i++) {
             extract += (hash[i] << (8 * (i - offset)));
         }
-        printf("%d\n", extract);
 
         string res = hexlify((unsigned char*)&extract, 32);
         PRINTD(5, 0, "Using time %s, key %s returned key %s", (char*)strstr.str().c_str(), (char*)key.c_str(), (char*)res.c_str());

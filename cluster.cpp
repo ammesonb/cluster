@@ -284,7 +284,6 @@ int main(int argc, char *argv[]) {/*{{{*/
 
     // TODO need termination condition
     time_t last_keepalive_update = 0;
-    time_t last_key_update = get_cur_time();
     PRINTD(1, 0, "Entering service loop");
     while (keep_running) {/*{{{*/
         vector<int> now_offline;
