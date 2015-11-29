@@ -3,5 +3,7 @@
 #include <string>
 using std::string;
 
-string calculate_totp(string pw, string key);
+namespace Cluster {
+    string calculate_totp(string pw, string key);
+}
 #endif
