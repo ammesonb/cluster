@@ -164,7 +164,7 @@ namespace Cluster {
             send(host_list[*it].socket, cinfo.c_str(), cinfo.length(), 0);
             // Give receiver time to complete current set of commands and
             // mark this host as busy to allow direct network communication
-            usleep(10000);
+            usleep(50000);
 
             // Start sending file data
             string metadata = path.append("::").append(to_string(length));
@@ -192,7 +192,6 @@ namespace Cluster {
 
     void* recv_file(void *arg) {/*{{{*/
         int hid = *((int*)arg);
-        hosts_busy.push_back(hid);
         char *buf = create_str(1024);
         PRINTD(4, 0, "NET", "Waiting to receive filedata from %d", hid);
         while (recv(host_list[hid].socket, buf, 1024, MSG_DONTWAIT) <= 0) usleep(250000);
@@ -270,11 +269,14 @@ namespace Cluster {
                             PRINTD(5, 0, "RECV", "Found command with length %lu", msg.length());
                             host_list[*it].last_msg = get_cur_time();
                             msg = dec_msg(msg, calculate_totp(host_list[int_id].password, host_list[int_id].address));
+                            // Check if ping
                             if (std::to_string(*it).append("-ping").compare(msg) == 0) {
                                 PRINTD(4, 0, "RECV", "Got ping message from %d", *it);
                                 msg = get_split();
                                 continue;
                             }
+
+                            // Parse command
                             start_split(msg, "--");
                             int command_level = get_split_level();
                             string command = get_split();
@@ -283,6 +285,7 @@ namespace Cluster {
                                 pthread_t file_thread;
                                 int *hid = (int*)malloc(sizeof(int*));
                                 *hid = *it;
+                                hosts_busy.push_back(hid);
                                 pthread_create(&file_thread, NULL, recv_file, hid);
                                 usleep(100000);
                             } else if (command == "dyn") {
