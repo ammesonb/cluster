@@ -36,13 +36,13 @@ namespace Cluster {
         while (ho.length() > 0) {
             start_split(ho, " ");
             string hostname = get_split();
-            if (hostname.length() == 0) {valid = false; PRINTD(0, 0, "Bad formatting for host on line %d, requires hostname", host_num);}
+            if (hostname.length() == 0) {valid = false; PRINTD(0, 0, "CONF", "Bad formatting for host on line %d, requires hostname", host_num);}
             string host_port = get_split();
-            if (host_port.length() == 0) {valid = false; PRINTD(0, 0, "Bad formatting for host on line %d, requires port", host_num);}
+            if (host_port.length() == 0) {valid = false; PRINTD(0, 0, "CONF", "Bad formatting for host on line %d, requires port", host_num);}
             string host_pass = get_split();
-            if (host_pass.length() == 0) {valid = false; PRINTD(0, 0, "Bad formatting for host on line %d, host requires password for validation", host_num);}
+            if (host_pass.length() == 0) {valid = false; PRINTD(0, 0, "CONF", "Bad formatting for host on line %d, host requires password for validation", host_num);}
 
-            if (get_split().length() != 0) {valid = false; PRINTD(0, 0, "Bad formatting for host on line %d, extra data found", host_num);}
+            if (get_split().length() != 0) {valid = false; PRINTD(0, 0, "CONF", "Bad formatting for host on line %d, extra data found", host_num);}
             end_split(1);
             ho = get_split();
             host_num++;
@@ -51,7 +51,7 @@ namespace Cluster {
     } /*}}}*/
 
     void load_host_config() { /*{{{*/
-        if (!validate_host_config()) {PRINTD(0, 0, "Found invalid host configuration!"); return;}
+        if (!validate_host_config()) {PRINTD(0, 0, "CONF", "Found invalid host configuration!"); return;}
         string hosts = read_file(STRLITFIX("hosts"));
         start_split(hosts, "\n");
         string ho = get_split();
@@ -60,14 +60,14 @@ namespace Cluster {
             Host host;
             start_split(ho, " ");
             string hostname = get_split();
-            PRINTD(3, 2, "Parsing host %s", hostname.c_str());
+            PRINTD(3, 2, "CONF", "Parsing host %s", hostname.c_str());
             host.address = hostname;
             host.id = host_num;
             string host_port = get_split();
             host.port = stoi(host_port);
-            PRINTD(4, 3, "Host is on port %d", host.port);
+            PRINTD(4, 3, "CONF", "Host is on port %d", host.port);
             bool dyn = false;
-            if (is_ip(hostname)) {dyn = true; PRINTDI(3, "Host is dynamic");}
+            if (is_ip(hostname)) {dyn = true; PRINTDI(3, "CONF", "Host is dynamic");}
             host.dynamic = dyn;
             string host_pass = get_split();
 
@@ -87,13 +87,13 @@ namespace Cluster {
         int serv_num = 0;
         while (serv.length() > 0) {
             string servname = get_split();
-            if (servname.length() == 0) {valid = false; PRINTD(0, 0, "Bad formatting for service on line %d, requires name", serv_num);}                     
+            if (servname.length() == 0) {valid = false; PRINTD(0, 0, "CONF", "Bad formatting for service on line %d, requires name", serv_num);}                     
             string host1 = get_split();
-            if (host1.length() == 0) {valid = false; PRINTD(0, 0, "Bad formatting for service on line %d, requires at least one host", serv_num);}
+            if (host1.length() == 0) {valid = false; PRINTD(0, 0, "CONF", "Bad formatting for service on line %d, requires at least one host", serv_num);}
             int hosts_found = 1;
             while (get_split_level() == 1) {
                 string host = get_split();
-                if (hosts_found == 1 && host.length() == 0) PRINTD(2, 3, "Service %s only has one host! Consider adding another for redundancy.", servname.c_str());
+                if (hosts_found == 1 && host.length() == 0) PRINTD(2, 3, "CONF", "Service %s only has one host! Consider adding another for redundancy.", servname.c_str());
                 if (host.length() == 0) break;
                 hosts_found++;
             }
@@ -105,7 +105,7 @@ namespace Cluster {
     }/*}}}*/
 
     void load_service_config() {/*{{{*/
-        if (!validate_service_config()) {PRINTD(0, 0, "Found invalid service configuration!"); return;}
+        if (!validate_service_config()) {PRINTD(0, 0, "CONF", "Found invalid service configuration!"); return;}
         string services = read_file(STRLITFIX("services"));
         start_split(services, "\n");
         string serv = get_split();
@@ -118,18 +118,18 @@ namespace Cluster {
             start_split(serv, " ");
             string servname = get_split();
             service.name = servname;
-            PRINTD(3, 2, "Parsing service %s", servname.c_str());
+            PRINTD(3, 2, "CONF", "Parsing service %s", servname.c_str());
             string host1 = get_split();
-            PRINTD(5, 3, "Host %s is subscribed", host_list[stoi(host1)].address.c_str());
+            PRINTD(5, 3, "CONF", "Host %s is subscribed", host_list[stoi(host1)].address.c_str());
             serv_hosts.push_back(host_list[stoi(host1)]);
             // For each host registered with the service
             while (get_split_level() == 1) {
                 string host = get_split();
                 if (host.length() == 0) break;
-                PRINTDI(5, "Host %s is subscribed", host_list[stoi(host)].address.c_str());
+                PRINTDI(5, "CONF", "Host %s is subscribed", host_list[stoi(host)].address.c_str());
                 serv_hosts.push_back(host_list[stoi(host)]);
             }
-            PRINTD(4, 3, "Found %lu hosts", serv_hosts.size());
+            PRINTD(4, 3, "CONF", "Found %lu hosts", serv_hosts.size());
             end_split(1);
             serv = get_split();
             service.hosts = serv_hosts;
@@ -142,7 +142,7 @@ namespace Cluster {
         }
 
         // Once all services are parsed, attribute services to hosts
-        PRINTD(5, 3, "Adding services to hosts");
+        PRINTD(5, 3, "CONF", "Adding services to hosts");
         ITERVECTOR(host_services, it)
             host_list[(*it).first].services = (*it).second;
     } /*}}}*/
@@ -171,7 +171,7 @@ namespace Cluster {
     }/*}}}*/
 
     vector<string> get_directory_files(char *dir) {/*{{{*/
-        PRINTDI(5, "Getting directory list for %s", dir);
+        PRINTDI(5, "COMMON", "Getting directory list for %s", dir);
         vector<string> files;
 
         DIR *d;
@@ -180,20 +180,20 @@ namespace Cluster {
             while ((ent = readdir(d)) != NULL) {
                 if (ent->d_type == DT_DIR) {
                     if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) continue;
-                    PRINTDR(5, 1, "Found directory %s", ent->d_name);
+                    PRINTDR(5, 1, "COMMON", "Found directory %s", ent->d_name);
                     vector<string> sub_files = get_directory_files(ent->d_name);
                     files.insert(files.end(), sub_files.begin(), sub_files.end());
                     continue;
                 }
                 if (strcmp(ent->d_name, "start") == 0 || strcmp(ent->d_name, "stop") == 0) continue;
-                PRINTDR(5, 1, "Found file %s", ent->d_name);
+                PRINTDR(5, 1, "COMMON", "Found file %s", ent->d_name);
                 files.push_back(string(dir).append(string(ent->d_name)));
             }
         } else {
-            PRINTDI(1, "Failed to list directory %s", dir);
+            PRINTDI(1, "COMMON", "Failed to list directory %s", dir);
         }
         closedir(d);
-        PRINTDI(5, "Directory %s had %lu files", dir, files.size());
+        PRINTDI(5, "COMMON", "Directory %s had %lu files", dir, files.size());
         return files;
     }/*}}}*/
 
@@ -225,7 +225,7 @@ namespace Cluster {
     void start_split(string s, string d) {/*{{{*/
         if (string_split_level != -1 && string_split_offset[string_split_level] != 0) string_split_level++;
         if (string_split_level == -1) string_split_level = 0;
-        PRINTDI(5, "Starting split level %d", string_split_level);
+        PRINTDI(5, "COMMON", "Starting split level %d", string_split_level);
         string_split_source.push_back(s);
         string_split_delim.push_back(d);
         string_split_offset.push_back(0);
@@ -237,11 +237,11 @@ namespace Cluster {
             end_split(string_split_level);
             return "";
         }
-        //PRINTDI(5, 0, "Found token at %d for delimiter %d", sp_getsrc().find(sp_getdel(), sp_getoff()), sp_getdel().c_str()[0]);
+        //PRINTDI(5, 0, "COMMON", "Found token at %d for delimiter %d", sp_getsrc().find(sp_getdel(), sp_getoff()), sp_getdel().c_str()[0]);
         last_string_split_offset[string_split_level] = sp_getoff();
         string_split_offset[string_split_level] = sp_getsrc().find(sp_getdel(), sp_getoff());
         if (sp_getoff() > sp_getsrc().length()) string_split_offset[string_split_level] = sp_getsrc().length();
-        PRINTDI(5, "Returning substr from %d to %d", sp_getlastoff(), sp_getoff());
+        PRINTDI(5, "COMMON", "Returning substr from %d to %d", sp_getlastoff(), sp_getoff());
         string string_split_ret = sp_getsrc().substr(sp_getlastoff(), sp_getoff() - sp_getlastoff());
         if (sp_getoff() < sp_getsrc().length())
             string_split_offset[string_split_level] = sp_getoff() + sp_getdel().length();
@@ -250,7 +250,7 @@ namespace Cluster {
 
     void end_split(int level) {/*{{{*/
         if (string_split_level != level) return;
-        PRINTDI(5, "Ending split level %d", string_split_level);
+        PRINTDI(5, "COMMON", "Ending split level %d", string_split_level);
         last_string_split_offset.pop_back();
         string_split_offset.pop_back();
         string_split_source.pop_back();
@@ -288,7 +288,7 @@ namespace Cluster {
     }/*}}}*/
 
     string unhexlify(string data) {/*{{{*/
-        if (data.length() & 1) {PRINTD(1, 0, "Invalid length for unhexlify, got %lu", data.length()); return string("");}
+        if (data.length() & 1) {PRINTD(1, 0, "COMMON", "Invalid length for unhexlify, got %lu", data.length()); return string("");}
         string out;
         out.reserve(data.length() / 2);
         for (int i = 0; i < data.length(); i += 2) {
@@ -334,7 +334,7 @@ namespace Cluster {
     }/*}}}*/
 
     string read_file(char *name) {/*{{{*/
-        PRINTDI(5, "Attempting to read file %s", name);
+        PRINTDI(5, "COMMON", "Attempting to read file %s", name);
         ifstream f(name);
         string str;
         f.seekg(0, std::ios::end);
@@ -342,7 +342,7 @@ namespace Cluster {
         f.seekg(0, std::ios::beg);
 
         str.assign((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
-        PRINTDI(5, "Read %lu bytes", str.length());
+        PRINTDI(5, "COMMON", "Read %lu bytes", str.length());
         return str;
     }/*}}}*/
 

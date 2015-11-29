@@ -36,11 +36,11 @@ namespace Cluster {
 
     void Service::start() {/*{{{*/
         // TODO write me
-        PRINTD(2, 0, "Starting service %s", name.c_str());
+        PRINTD(2, 0, "SERV", "Starting service %s", name.c_str());
     }/*}}}*/
 
     void Service::stop() {/*{{{*/
         // TODO write me
-        PRINTD(2, 0, "Stopping service %s", name.c_str());
+        PRINTD(2, 0, "SERV", "Stopping service %s", name.c_str());
     }/*}}}*/
 }

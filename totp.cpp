@@ -26,7 +26,7 @@ namespace Cluster {
         }
 
         string res = hexlify((unsigned char*)&extract, 32);
-        PRINTD(5, 0, "Using time %s, key %s returned key %s", (char*)strstr.str().c_str(), (char*)key.c_str(), (char*)res.c_str());
+        PRINTD(5, 0, "TOTP", "Using time %s, key %s returned key %s", (char*)strstr.str().c_str(), (char*)key.c_str(), (char*)res.c_str());
         return res;
     }
 }

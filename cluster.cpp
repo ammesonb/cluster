@@ -100,14 +100,14 @@ namespace Cluster {/*{{{*/
     DBUS_FUNC(dbus_handler) {/*{{{*/
         int handled = 0;
         const char *iface = dbus_message_get_interface(dbmsg);
-        PRINTD(3, 0, "Received DBus message on %s", iface);
+        PRINTD(3, 0, "DBUS", "Received DBus message on %s", iface);
         if (!strcmp(iface, DBUS_INTERFACE_INTROSPECTABLE)) {
             DBUS_INTROSPEC
             handled = 1;
         } else if (!strcmp(iface, DBUS_NAME)) {
             if (dbus_message_is_method_call(dbmsg, DBUS_NAME, "updateHandlerPID")) {
                 DBUS_GET_ARGS(DBUS_TYPE_INT32, &handler_pid);
-                PRINTD(3, 0, "Handler pid set to %d", handler_pid);
+                PRINTD(3, 0, "DBUS", "Handler pid set to %d", handler_pid);
                 int ret = 1;
                 DBUS_REPLY_INIT
                 DBUS_ADD_ARGS(db_reply_msg)
@@ -121,22 +121,22 @@ namespace Cluster {/*{{{*/
     }/*}}}*/
 
     void* dbus_loop(void* args) {/*{{{*/
-        PRINTD(1, 0, "Entering main DBus loop");
+        PRINTD(1, 0, "DBUS", "Entering main DBus loop");
         while (dbus_connection_read_write_dispatch(conn, -1));
-        PRINTD(1, 0, "Exiting main DBus loop");
+        PRINTD(1, 0, "DBUS", "Exiting main DBus loop");
         return NULL;
     }/*}}}*/
 
     int init_dbus() {/*{{{*/
-        PRINTD(2, 0, "Initializing DBus on %s", DBUS_PATH);
+        PRINTD(2, 0, "DBUS", "Initializing DBus on %s", DBUS_PATH);
         DBUS_INIT(DBUS_NAME, DBUS_PATH, dbus_handler)
-        PRINTD(2, 1, "Dispatching DBus thread");
+        PRINTD(2, 1, "DBUS", "Dispatching DBus thread");
         pthread_create(&dbus_dispatcher, NULL, dbus_loop, NULL);
         return EXIT_SUCCESS;
     }/*}}}*/
 
     void queue_keepalive() {/*{{{*/
-        PRINTD(4, 0, "Queueing keepalive to %lu hosts", hosts_online.size());
+        PRINTD(4, 0, "MAIN", "Queueing keepalive to %lu hosts", hosts_online.size());
         ITERVECTOR(hosts_online, it) {
             Host h = host_list[*it];
             send_message_queue[h.id].push_back(ping_msg);
@@ -149,7 +149,7 @@ using namespace Cluster;
 int main(int argc, char *argv[]) {/*{{{*/
     struct timeval init_start_tv, init_end_tv;
     gettimeofday(&init_start_tv, NULL);
-    PRINTD(1, 0, "Loading config file");
+    PRINTD(1, 0, "MAIN", "Loading config file");
     // Load configuration /*{{{*/
     cfg = cfg_init(config, 0);
     cfg_parse(cfg, "cluster.conf");
@@ -158,27 +158,27 @@ int main(int argc, char *argv[]) {/*{{{*/
     // check a nonexistent level 0 split, causing a segfault
     set_split_level(-1);
 
-    PRINTD(1, 1, "Found debug level %d", debug);
+    PRINTD(1, 1, "MAIN", "Found debug level %d", debug);
 
     // Read in machine number and set ping message
-    PRINTD(3, 1, "Determining my ID");/*{{{*/
+    PRINTD(3, 1, "MAIN", "Determining my ID");/*{{{*/
     my_id = read_file(STRLITFIX("/var/opt/cluster/id"));
     my_id.assign(trim(my_id));
     int_id = stoi(my_id);
-    PRINTDI(3, "My ID is %s", my_id.c_str());
+    PRINTDI(3, "MAIN", "My ID is %s", my_id.c_str());
     ping_msg.reserve(my_id.length() + 5);
     ping_msg.append(my_id).append("-ping");
     if (ping_msg.length() < 6) {cerr <<  "Failed to parse id" << endl; exit(1);}/*}}}*/
 
-    PRINTD(3, 1, "Loading hosts");
+    PRINTD(3, 1, "MAIN", "Loading hosts");
     if (!validate_host_config()) {DIE("Found invalid host configuration file!");}
     load_host_config(); 
 
-    PRINTD(3, 1, "Loading services");
+    PRINTD(3, 1, "MAIN", "Loading services");
     if (!validate_service_config()) {DIE("Found invalid service configuration file!");}
     load_service_config(); /*}}}*/
 
-    PRINTD(3, 1, "Creating list of synchronized files");/*{{{*/
+    PRINTD(3, 1, "MAIN", "Creating list of synchronized files");/*{{{*/
     string c_files = trim(string(crit_files));
     start_split(c_files, "\n");
     string file = trim(get_split());
@@ -204,7 +204,7 @@ int main(int argc, char *argv[]) {/*{{{*/
         sync_files.insert(sync_files.end(), f.begin(), f.end());
     }/*}}}*/
 
-    PRINTD(3, 1, "Getting sync'ed file data");/*{{{*/
+    PRINTD(3, 1, "MAIN", "Getting sync'ed file data");/*{{{*/
     // TODO need to consider files that aren't on remote machine
     // TODO really should use checksums since may have been overwritten while offline
     // TODO prioritize files on online machines over offline?
@@ -215,37 +215,37 @@ int main(int argc, char *argv[]) {/*{{{*/
         string name = (string)*it;
         sync_checksums[name] = hash_file((char*)name.c_str());
         sync_timestamps[name] = get_file_mtime((char*)name.c_str());
-        PRINTD(4, 1, "    Sync file: %s", name.c_str());
-        PRINTD(4, 1, "     Checksum: %s", sync_checksums[name].c_str());
-        PRINTD(4, 1, "Last modified: %lu", sync_timestamps[name]);
+        PRINTD(4, 1, "MAIN", "    Sync file: %s", name.c_str());
+        PRINTD(4, 1, "MAIN", "     Checksum: %s", sync_checksums[name].c_str());
+        PRINTD(4, 1, "MAIN", "Last modified: %lu", sync_timestamps[name]);
     }/*}}}*/
 
-    PRINTD(2, 0, "Initializing session");
-    PRINTD(3, 1, "Opening DBus");
+    PRINTD(2, 0, "MAIN", "Initializing session");
+    PRINTD(3, 1, "MAIN", "Opening DBus");
     // Open DBus connection/*{{{*/
     DBusError dberror;
 
     dbus_error_init(&dberror);
     conn = dbus_bus_get(DBUS_BUS_SESSION, &dberror);
     if (!conn || conn == NULL) {
-        PRINTD(1, 0, "Connection to D-BUS daemon failed: %s", dberror.message);
+        PRINTD(1, 0, "MAIN", "Connection to D-BUS daemon failed: %s", dberror.message);
     } else {
         init_dbus();
     }
     dbus_error_free(&dberror);/*}}}*/
 
-    PRINTD(3, 0, "Performing crypto sanity check");/*{{{*/
-    PRINTD(3, 1, "Plain: %s", ping_msg.c_str());
+    PRINTD(3, 0, "MAIN", "Performing crypto sanity check");/*{{{*/
+    PRINTD(3, 1, "MAIN", "Plain: %s", ping_msg.c_str());
     string out = enc_msg(ping_msg, string("password"));
-    PRINTD(3, 1, "Enc: %s", out.c_str());
+    PRINTD(3, 1, "MAIN", "Enc: %s", out.c_str());
     string pt = dec_msg(out, string("password"));
-    PRINTD(3, 1, "Dec: %s", pt.c_str());
+    PRINTD(3, 1, "MAIN", "Dec: %s", pt.c_str());
     if (pt != ping_msg) {DIE("AES encrypt/decrypt didn't return same value!");}/*}}}*/
 
-    PRINTD(2, 0, "Starting networking services");/*{{{*/
+    PRINTD(2, 0, "MAIN", "Starting networking services");/*{{{*/
     bool online = verify_connectivity();
     if (online) {
-        PRINTD(3, 1, "I am online");
+        PRINTD(3, 1, "MAIN", "I am online");
         port = host_list[int_id].port;
     } else {
         DIE("I am not online");
@@ -256,16 +256,16 @@ int main(int argc, char *argv[]) {/*{{{*/
 
     start_accept_thread(port);
 
-    PRINTD(3, 1, "Attempting to connect to all hosts");
+    PRINTD(3, 1, "MAIN", "Attempting to connect to all hosts");
     ITERVECTOR(host_list, it) {
         Host h = (*it).second;
         if (h.id == int_id) continue;
-        PRINTD(3, 2, "Connecting to host %s", h.address.c_str());
+        PRINTD(3, 2, "MAIN", "Connecting to host %s", h.address.c_str());
         connect_to_host((*it).first);
     }
-    PRINTD(2, 1, "Found %lu alive hosts", hosts_online.size());
+    PRINTD(2, 1, "MAIN", "Found %lu alive hosts", hosts_online.size());
 
-    PRINTD(3, 1, "Creating receive thread");
+    PRINTD(3, 1, "MAIN", "Creating receive thread");
     pthread_t recv_thread;
     pthread_create(&recv_thread, NULL, recv_loop, NULL);/*}}}*/
 
@@ -280,11 +280,11 @@ int main(int argc, char *argv[]) {/*{{{*/
     diff2 += (init_start_tv.tv_sec * 1000);
 
     diff -= diff2;
-    PRINTD(3, 0, "Initialization took %llu milliseconds", diff);
+    PRINTD(3, 0, "MAIN", "Initialization took %llu milliseconds", diff);
 
     // TODO need termination condition
     time_t last_keepalive_update = 0;
-    PRINTD(1, 0, "Entering service loop");
+    PRINTD(1, 0, "MAIN", "Entering service loop");
     while (keep_running) {/*{{{*/
         vector<int> now_offline;
         // Check that all hosts are actually online/*{{{*/
@@ -293,7 +293,7 @@ int main(int argc, char *argv[]) {/*{{{*/
                 Host h = host_list[*it];
                 if (get_cur_time() - h.last_msg > dead) {
                     if (!verify_connectivity()) {
-                        PRINTD(1, 0, "I am offline!");
+                        PRINTD(1, 0, "MAIN", "I am offline!");
                         // TODO do something here
                         // or maybe not? If you're offline, just stop your current services?
                         // What about unsychronized files?
@@ -302,7 +302,7 @@ int main(int argc, char *argv[]) {/*{{{*/
                     }
                     time_t l = h.last_msg;
                     struct tm *t = localtime(&l);
-                    PRINTD(2, 0, "Host %s is offline, last heard from at %s", h.address.c_str(), asctime(t));
+                    PRINTD(2, 0, "MAIN", "Host %s is offline, last heard from at %s", h.address.c_str(), asctime(t));
                     h.online = false;
                     now_offline.push_back(h.id);
                     check_services(h.id, false);
@@ -317,7 +317,7 @@ int main(int argc, char *argv[]) {/*{{{*/
 
         // Check keepalive timer/*{{{*/
         if (get_cur_time() - last_keepalive_update > interval) {
-            PRINTD(5, 0, "Sending keepalive");
+            PRINTD(5, 0, "MAIN", "Sending keepalive");
             last_keepalive_update = get_cur_time();
             queue_keepalive();
         }/*}}}*/
@@ -326,7 +326,7 @@ int main(int argc, char *argv[]) {/*{{{*/
         ITERVECTOR(sync_files, it) {
             string name = *it;
             if (get_file_mtime((char*)name.c_str()) != sync_timestamps[name]) {
-                PRINTD(3, 0, "Detected change in file %s", name.c_str());
+                PRINTD(3, 0, "MAIN", "Detected change in file %s", name.c_str());
                 sync_timestamps[name] = get_file_mtime((char*)name.c_str());
                 send_file(name);
             }
@@ -335,7 +335,7 @@ int main(int argc, char *argv[]) {/*{{{*/
         usleep((float)interval / 2.0 * 100000.0);
     }/*}}}*/
 
-    PRINTD(1, 0, "Exiting main loop");
+    PRINTD(1, 0, "MAIN", "Exiting main loop");
     
     return 0;
 }/*}}}*/

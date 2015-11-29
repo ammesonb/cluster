@@ -29,16 +29,16 @@ namespace Cluster {
     }/*}}}*/
 
     string srecv(int sock) {/*{{{*/
-        PRINTDI(5, "Waiting to receive size of data from socket");
+        PRINTDI(5, "NET", "Waiting to receive size of data from socket");
         char *buf = create_str(8);
         recv(sock, buf, 8, 0);
         string size;
         size.reserve(8);
         size.assign(buf, 8);
-        PRINTDI(5, "Got size %d", stoi(size));
+        PRINTDI(5, "NET", "Got size %d", stoi(size));
         free(buf);
 
-        PRINTDI(5, "Waiting to receive data from socket");
+        PRINTDI(5, "NET", "Waiting to receive data from socket");
         char *data = create_str(stoi(size));
         recv(sock, data, stoi(size), 0);
         string str;
@@ -60,18 +60,18 @@ namespace Cluster {
         EVP_CIPHER_CTX_init(&ctx);
         EVP_EncryptInit_ex(&ctx, EVP_aes_128_cbc(), NULL, (const unsigned char*)passwd.c_str(), iv);
         if (!EVP_EncryptUpdate(&ctx, outbuf, &outlen, (const unsigned char*)msg.c_str(), msg.length())) {
-            PRINTD(1, 0, "Encryption of message failed in EncryptUpdate");
+            PRINTD(1, 0, "NET", "Encryption of message failed in EncryptUpdate");
             return string("");
         }
 
         if (!EVP_EncryptFinal_ex(&ctx, outbuf + outlen, &secondlen)) {
-            PRINTD(1, 0, "Encryption of message failed in EncryptFinal");
+            PRINTD(1, 0, "NET", "Encryption of message failed in EncryptFinal");
             return string("");
         }
         outlen += secondlen;
         EVP_CIPHER_CTX_cleanup(&ctx);
-        PRINTDI(5, "Encrypt using IV %s", hexlify(iv, 32).c_str());
-        PRINTDI(5, "Encrypting %s", hexlify(outbuf, outlen).c_str());
+        PRINTDI(5, "NET", "Encrypt using IV %s", hexlify(iv, 32).c_str());
+        PRINTDI(5, "NET", "Encrypting %s", hexlify(outbuf, outlen).c_str());
 
         return hexlify(iv, 32).append(hexlify(outbuf, outlen));
     }/*}}}*/
@@ -82,8 +82,8 @@ namespace Cluster {
         unsigned char outbuf[int(msg.length() * 1.1) + 16];
         int outlen, secondlen;
 
-        PRINTDI(5, "Decrypt using IV %s", msg.substr(0, 64).c_str());
-        PRINTDI(5, "Decrypting %s", msg.substr(64, msg.length() - 64).c_str());
+        PRINTDI(5, "NET", "Decrypt using IV %s", msg.substr(0, 64).c_str());
+        PRINTDI(5, "NET", "Decrypting %s", msg.substr(64, msg.length() - 64).c_str());
 
         string iv = unhexlify(msg.substr(0, 64));
         string data = unhexlify(msg.substr(64, msg.length() - 64));
@@ -94,12 +94,12 @@ namespace Cluster {
                            (const unsigned char*)passwd.c_str(),
                            (const unsigned char*)iv.c_str());
         if (!EVP_DecryptUpdate(&ctx, outbuf, &outlen, (const unsigned char*)data.c_str(), data.length())) {
-            PRINTD(1, 0, "Decryption of message failed in DecryptUpdate");
+            PRINTD(1, 0, "NET", "Decryption of message failed in DecryptUpdate");
             return string("");
         }
 
         if (!EVP_DecryptFinal_ex(&ctx, outbuf + outlen, &secondlen)) {
-            PRINTD(1, 0, "Decryption of message failed in DecryptFinal");
+            PRINTD(1, 0, "NET", "Decryption of message failed in DecryptFinal");
             return string("");
         }
         outlen += secondlen;
@@ -116,16 +116,16 @@ namespace Cluster {
         while (keep_running) {
             usleep((float)interval / 3.0 * 100000.0);
             if (std::find(VECTORFIND(hosts_busy, hostid)) != hosts_busy.end()) {
-                PRINTD(4, 0, "Host %d is busy", hostid);
+                PRINTD(4, 0, "SEND", "Host %d is busy", hostid);
             }
-            PRINTD(5, 0, "Checking message queue for %s", host_list[hostid].address.c_str());
+            PRINTD(5, 0, "SEND", "Checking message queue for %s", host_list[hostid].address.c_str());
             ITERVECTOR(send_message_queue[hostid], it) {
                 string msg = *it;
-                PRINTD(5, 1, "Sending %s to %d", msg.c_str(), hostid);
+                PRINTD(5, 1, "SEND", "Sending %s to %d", msg.c_str(), hostid);
                 string ctxt = enc_msg(msg, calculate_totp(host_list[hostid].password, host_list[hostid].address)).append(MSG_DELIM);
                 // This blocks
                 send(host_list[hostid].socket, ctxt.c_str(), ctxt.length(), 0);
-                PRINTDI(5, "Sent");
+                PRINTDI(5, "SEND", "Sent");
             }
             send_message_queue[hostid].erase(
                 std::remove_if(VECTORFIND(send_message_queue[hostid],
@@ -133,7 +133,7 @@ namespace Cluster {
                 send_message_queue[hostid].end()
                                             );
         }
-        PRINTD(1, 0, "Sender for host %s terminating", host_list[hostid].address.c_str());
+        PRINTD(1, 0, "SEND", "Sender for host %s terminating", host_list[hostid].address.c_str());
         free(arg);
         return NULL;
     }/*}}}*/
@@ -157,7 +157,7 @@ namespace Cluster {
         ITERVECTOR(hosts_online, it) {
             // TODO add file permissions here?
             if (*it == int_id) continue;
-            PRINTD(4, 0, "Sending file %s to host %d", path.c_str(), *it);
+            PRINTD(4, 0, "NET", "Sending file %s to host %d", path.c_str(), *it);
             // Inform receiver we are sending file
             string info = string("fs").append("--").append(my_id);
             string cinfo = enc_msg(info, calculate_totp(host_list[*it].password, host_list[*it].address)).append(MSG_DELIM);
@@ -169,17 +169,17 @@ namespace Cluster {
             // Start sending file data
             string metadata = path.append("::").append(to_string(length));
             string ctxt = enc_msg(metadata, calculate_totp(host_list[*it].password, host_list[*it].address));
-            PRINTD(5, 1, "Sending metadata");
+            PRINTD(5, 1, "NET", "Sending metadata");
             send(host_list[*it].socket, ctxt.c_str(), ctxt.length(), 0);
             char *buf = create_str(8);
             recv(host_list[*it].socket, buf, 8, 0);
             if (strcmp(buf, "FAIL") == 0) {
                 // TODO what should happen?
-                PRINTD(1, 0, "Failed to send file %s to host %d", path.c_str(), *it);
+                PRINTD(1, 0, "NET", "Failed to send file %s to host %d", path.c_str(), *it);
                 return NULL;
             } else if (strcmp(buf, "OK") != 0) {
                 // TODO um....
-                PRINTD(1, 0, "Received unknown response in sending file %s to host %d", path.c_str(), *it);
+                PRINTD(1, 0, "NET", "Received unknown response in sending file %s to host %d", path.c_str(), *it);
                 return NULL;
             }
             free(buf);
@@ -194,7 +194,7 @@ namespace Cluster {
         int hid = *((int*)arg);
         hosts_busy.push_back(hid);
         char *buf = create_str(1024);
-        PRINTD(4, 0, "Waiting to receive filedata from %d", hid);
+        PRINTD(4, 0, "NET", "Waiting to receive filedata from %d", hid);
         while (recv(host_list[hid].socket, buf, 1024, MSG_DONTWAIT) <= 0) usleep(250000);
         host_list[hid].last_msg = get_cur_time();
         string fdata = string(buf, 0, strlen(buf));
@@ -203,13 +203,14 @@ namespace Cluster {
         string fname = get_split();
         const char *name = filename(fname).c_str();
         char *dircmd = create_str(fname.length() + 20);
+        PRINTD(3, 0, "NET", "Receiving file %s, path %s", name, (char*)dirname(fname).c_str());
         sprintf(dircmd, "mkdir -p %s", dirname(fname).c_str());
         system(dircmd);
         free(dircmd);
 
         int dlen = std::stoi(get_split());
         if (dlen <= 0) {
-            PRINTD(1, 0, "File transfer of %s from %d failed", fname.c_str(), hid);
+            PRINTD(1, 0, "NET", "File transfer of %s from %d failed", fname.c_str(), hid);
             send(host_list[hid].socket, "FAIL", 4, 0);
             free(arg);
             hosts_busy.erase(std::remove(VECTORFIND(hosts_busy, hid)), hosts_busy.end());
@@ -228,13 +229,13 @@ namespace Cluster {
         free(data);
 
         if (strcmp(name, "hosts") == 0) {
-            PRINTD(2, 0, "Reloading host config");
+            PRINTD(2, 0, "NET", "Reloading host config");
             load_host_config();
         } else if (strcmp(name, "services") == 0) {
-            PRINTD(2, 0, "Reloading service config");
+            PRINTD(2, 0, "NET", "Reloading service config");
             load_service_config();
         } else if (strcmp(name, "cluster.conf") == 0) {
-            PRINTD(2, 0, "Reloading main config");
+            PRINTD(2, 0, "NET", "Reloading main config");
             cfg_t *cfg = cfg_init(config, 0);
             cfg_parse(cfg, "cluster.conf");
         }
@@ -261,28 +262,29 @@ namespace Cluster {
                     
                     // If data is actually found
                     if (data.length() > 0) {
-                        PRINTD(4, 0, "Received %lu bytes", data.length());
+                        PRINTD(4, 0, "RECV", "Received %lu bytes", data.length());
                         // TODO check this works
                         start_split(data, MSG_DELIM);
                         string msg = get_split();
                         while (msg.length() > 0) {
-                            PRINTD(5, 0, "Found command with length %lu", msg.length());
+                            PRINTD(5, 0, "RECV", "Found command with length %lu", msg.length());
                             host_list[*it].last_msg = get_cur_time();
                             msg = dec_msg(msg, calculate_totp(host_list[int_id].password, host_list[int_id].address));
                             if (std::to_string(*it).append("-ping").compare(msg) == 0) {
-                                PRINTD(4, 0, "Got ping message from %d", *it);
+                                PRINTD(4, 0, "RECV", "Got ping message from %d", *it);
                                 msg = get_split();
                                 continue;
                             }
                             start_split(msg, "--");
                             int command_level = get_split_level();
                             string command = get_split();
-                            PRINTD(4, 0, "Received command %s from host %d", command.c_str(), *it);
+                            PRINTD(4, 0, "RECV", "Received command %s from host %d", command.c_str(), *it);
                             if (strcmp(command.c_str(), "fs") == 0) {
                                 pthread_t file_thread;
                                 int *hid = (int*)malloc(sizeof(int*));
                                 *hid = *it;
                                 pthread_create(&file_thread, NULL, recv_file, hid);
+                                usleep(100000);
                             } else if (command == "dyn") {
                                 // TODO dynamic host
                             } else if (command == "off") {
@@ -294,16 +296,18 @@ namespace Cluster {
                             msg = get_split();
                         }
                     }
+                } else {
+                    PRINTD(4, 0, "RECV", "Host %d is busy", *it);
                 }
             }
         }
-        PRINTD(1, 0, "Receive thread is terminating");
+        PRINTD(1, 0, "RECV", "Receive thread is terminating");
         return NULL;
     }/*}}}*/
 
     void* notify_offline(void *arg) {/*{{{*/
         int *hid = (int*)arg;
-        PRINTD(2, 0, "Host %d is going offline", *hid);
+        PRINTD(2, 0, "NET", "Host %d is going offline", *hid);
         Host h = host_list[*hid];
         h.online = false;
         hosts_online.erase(std::remove(VECTORFIND(hosts_online, *hid)), hosts_online.end());
@@ -322,12 +326,12 @@ namespace Cluster {
             char* addr = inet_ntoa(client_addr.sin_addr);
             // If s_addr is 0 then no connection was actually attempted and the call simply timed out
             if (client_addr.sin_addr.s_addr == 0) continue;
-            if (client_fd < 0) {PRINTD(1, 0, "Failed to accept a connection from %s", addr); continue;}
-            PRINTD(1, 0, "Waiting to receive auth from %s", addr);
+            if (client_fd < 0) {PRINTD(1, 0, "NET", "Failed to accept a connection from %s", addr); continue;}
+            PRINTD(1, 0, "NET", "Waiting to receive auth from %s", addr);
             char *data = create_str(1024);
             string hostdata;
             int read = recv(client_fd, data, 1024, 0);
-            if (read <= 0) {PRINTD(1, 0, "Received no data from connection with %s, aborting", addr); continue;}
+            if (read <= 0) {PRINTD(1, 0, "NET", "Received no data from connection with %s, aborting", addr); continue;}
             hostdata.reserve(read);
             hostdata.append(data);
             free(data);
@@ -336,15 +340,15 @@ namespace Cluster {
             int hostid = stoi(get_split());
             string hostname = dec_msg(get_split(), calculate_totp(host_list[hostid].password, host_list[hostid].address));
             end_split(level);
-            PRINTD(3, 0, "Got attempted host connection from ID %d: %s", hostid, hostname.c_str());
+            PRINTD(3, 0, "NET", "Got attempted host connection from ID %d: %s", hostid, hostname.c_str());
             string ip;
             ip.assign(addr);
 
             if (host_list[hostid].authenticate(hostid, hostname, ip)) {
-                PRINTD(4, 0, "Host %d: %s connection authenticated", hostid, hostname.c_str());
+                PRINTD(4, 0, "NET", "Host %d: %s connection authenticated", hostid, hostname.c_str());
                 send(client_fd, "auth", 4, 0);
             } else {
-                PRINTD(1, 0, "Host %d: %s connection didn't authenticate!", hostid, hostname.c_str());
+                PRINTD(1, 0, "NET", "Host %d: %s connection didn't authenticate!", hostid, hostname.c_str());
                 send(client_fd, "noauth", 6, 0);
                 continue;
             }
@@ -357,17 +361,17 @@ namespace Cluster {
             int *hid = (int*)malloc(sizeof(int*));
             *hid = hostid;
             pthread_create(&sender_thread, NULL, sender_loop, hid);
-            PRINTD(3, 0, "Host %d: %s connected", hostid, hostname.c_str());
+            PRINTD(3, 0, "NET", "Host %d: %s connected", hostid, hostname.c_str());
             
             check_services(hostid, true);
         }
 
-        PRINTD(1, 0, "Accept thread is exiting");
+        PRINTD(1, 0, "NET", "Accept thread is exiting");
         return NULL;
     }/*}}}*/
 
     void start_accept_thread(int port) {/*{{{*/
-        PRINTDI(3, "Configuring connection accept socket on %d", port);
+        PRINTDI(3, "NET", "Configuring connection accept socket on %d", port);
         acceptfd = socket(AF_INET, SOCK_STREAM, 0);
         set_sock_opts(acceptfd);
 
@@ -392,7 +396,7 @@ namespace Cluster {
         // TODO this won't work if two dynamic hosts are present in the config file
         // TODO maybe add a startup DDNS update command to ensure that dns addresses resolve properly?
         Host client = host_list[hostid];
-        PRINTDI(3, "Starting connection to %s:%d", client.address.c_str(), client.port);
+        PRINTDI(3, "NET", "Starting connection to %s:%d", client.address.c_str(), client.port);
         struct addrinfo *h = (struct addrinfo*)malloc(sizeof(struct addrinfo) + 1);
         struct addrinfo *res, *rp;
         memset(h, '\0', sizeof(*h));
@@ -401,7 +405,7 @@ namespace Cluster {
         h->ai_protocol = 0;
 
         if (getaddrinfo(client.address.c_str(), std::to_string(client.port).c_str(), h, &res)) {
-            PRINTDR(1, 1, "Failed to get address info for %s", client.address.c_str());
+            PRINTDR(1, 1, "NET", "Failed to get address info for %s", client.address.c_str());
             return;
         }
 
@@ -417,23 +421,23 @@ namespace Cluster {
             setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (char*)&to, sizeof(to));
             if (sock == -1) continue;
             ((struct sockaddr_in*)rp->ai_addr)->sin_port = htons(client.port);
-            PRINTDI(3, "Resolved to %s", inet_ntoa(((struct sockaddr_in*)rp->ai_addr)->sin_addr));
+            PRINTDI(3, "NET", "Resolved to %s", inet_ntoa(((struct sockaddr_in*)rp->ai_addr)->sin_addr));
             if (connect(sock, rp->ai_addr, rp->ai_addrlen) != -1) {
-                PRINTDI(3, "Connect succeeded");
+                PRINTDI(3, "NET", "Connect succeeded");
                 succeed = true;
                 break;
             } else {
-                PRINTDI(1, "Connection failed with error %d, %s", errno, strerror(errno));
+                PRINTDI(1, "NET", "Connection failed with error %d, %s", errno, strerror(errno));
             }
         }
         if (!succeed) {
-            PRINTD(1, 0, "Failed to connect to %s", client.address.c_str());
+            PRINTD(1, 0, "NET", "Failed to connect to %s", client.address.c_str());
             return;
         }
         set_sock_opts(sock);
         free(h);
 
-        PRINTDI(4, "Authenticating with %s", client.address.c_str());
+        PRINTDI(4, "NET", "Authenticating with %s", client.address.c_str());
 
         host_list[hostid].online = true;
         hosts_online.push_back(client.id);
@@ -447,9 +451,9 @@ namespace Cluster {
         char *buf = create_str(8);
         recv(sock, buf, 8, 0);
         if (strcmp(buf, "auth") == 0) {
-            PRINTDR(1, 1, "Successfully connected to %s", client.address.c_str());
+            PRINTDR(1, 1, "NET", "Successfully connected to %s", client.address.c_str());
         } else {
-            PRINTD(1, 0, "Failed to authenticate with %s, sent %s and received %s", client.address.c_str(), data.c_str(), buf);
+            PRINTD(1, 0, "NET", "Failed to authenticate with %s, sent %s and received %s", client.address.c_str(), data.c_str(), buf);
             update_dns();
             // TODO Should try to authenticate again somehow?
         }
@@ -463,7 +467,7 @@ namespace Cluster {
     }/*}}}*/
 
     void update_dns() {/*{{{*/
-        PRINTD(3, 0, "Updating DNS records");
+        PRINTD(3, 0, "NET", "Updating DNS records");
         // TODO this
     }/*}}}*/
 
