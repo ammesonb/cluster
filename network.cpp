@@ -268,7 +268,7 @@ namespace Cluster {
                         while (msg.length() > 0) {
                             PRINTD(5, 0, "Found command with length %lu", msg.length());
                             host_list[*it].last_msg = get_cur_time();
-                            msg = dec_msg(msg, host_list[int_id].password);
+                            msg = dec_msg(msg, calculate_totp(host_list[int_id].password, host_list[int_id].address));
                             if (std::to_string(*it).append("-ping").compare(msg) == 0) {
                                 PRINTD(4, 0, "Got ping message from %d", *it);
                                 msg = get_split();
@@ -334,7 +334,7 @@ namespace Cluster {
             start_split(hostdata, "--");
             int level = get_split_level();
             int hostid = stoi(get_split());
-            string hostname = dec_msg(get_split(), host_list.at(hostid).password);
+            string hostname = dec_msg(get_split(), calculate_totp(host_list[hostid].password, host_list[hostid].address));
             end_split(level);
             PRINTD(3, 0, "Got attempted host connection from ID %d: %s", hostid, hostname.c_str());
             string ip;
