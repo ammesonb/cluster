@@ -9,6 +9,7 @@ using std::stringstream;
 using std::string;
 
 namespace Cluster {
+    // TODO need to find a way to introduce a window - 1 time set forward and backwards
     string calculate_totp(string pw, string key) {
         string data;
         data.append(key);
@@ -27,7 +28,7 @@ namespace Cluster {
         printf("%d\n", extract);
 
         string res = hexlify((unsigned char*)&extract, 32);
-        PRINTD(4, 0, "Using time %s, key %s returned key %s", (char*)strstr.str().c_str(), (char*)key.c_str(), (char*)res.c_str());
+        PRINTD(5, 0, "Using time %s, key %s returned key %s", (char*)strstr.str().c_str(), (char*)key.c_str(), (char*)res.c_str());
         return res;
     }
 }

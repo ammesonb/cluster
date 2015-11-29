@@ -323,36 +323,6 @@ int main(int argc, char *argv[]) {/*{{{*/
             queue_keepalive();
         }/*}}}*/
 
-        // Check key update interval/*{{{*/
-        // Should update between 3 * host_num and 3 * (host_num + 1) once per hour
-        // TODO switch key updates to using TOTP to avoid offline issues
-        long seconds = get_cur_time() % 3600;
-        if ((3 * 60 * int_id) < seconds && seconds < (3 * 60 * (int_id + 1)) && (last_key_update - get_cur_time() > 1800)) {
-            time_t now = time(0);
-            struct tm *tmn = localtime(&now);
-            char *buf = create_str(100);
-            strftime(buf, 100, "%F %T", tmn);
-            PRINTD(2, 0, "Updating encryption key at %s", buf);
-            free(buf);
-            last_key_update = get_cur_time();
-            unsigned char *key = (unsigned char*)create_str(16);
-            RAND_load_file("/dev/urandom", 128);
-            RAND_bytes(key, 16);
-            string passwd = hexlify(key, 16);
-            host_list[int_id].password.assign(passwd);
-            string data = read_file(STRLITFIX("hosts"));
-            int pos = data.find(host_list[int_id].address, 0);
-            pos += host_list[int_id].address.length() +
-                   std::to_string(host_list[int_id].port).length() + 2;
-            int endpos = data.find("\n", pos);
-            data.replace(pos, endpos - pos, passwd);
-            PRINTD(3, 0, "Updating hosts file");
-            std::ofstream f;
-            f.open("hosts");
-            f << data;
-            f.close();
-        }/*}}}*/
-
         // Check file timestamps /*{{{*/
         ITERVECTOR(sync_files, it) {
             string name = *it;
