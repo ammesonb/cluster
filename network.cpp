@@ -16,6 +16,7 @@
 
 #include "common.h"
 #include "network.h"
+#include "totp.h"
 
 using std::ofstream;
 using std::to_string;
@@ -121,7 +122,7 @@ namespace Cluster {
             ITERVECTOR(send_message_queue[hostid], it) {
                 string msg = *it;
                 PRINTD(5, 1, "Sending %s to %d", msg.c_str(), hostid);
-                string ctxt = enc_msg(msg, host_list[hostid].password).append(MSG_DELIM);
+                string ctxt = enc_msg(msg, calculate_totp(host_list[hostid].password, host_list[hostid].address)).append(MSG_DELIM);
                 // This blocks
                 send(host_list[hostid].socket, ctxt.c_str(), ctxt.length(), 0);
                 PRINTDI(5, "Sent");
@@ -159,7 +160,7 @@ namespace Cluster {
             PRINTD(4, 0, "Sending file %s to host %d", path.c_str(), *it);
             // Inform receiver we are sending file
             string info = string("fs").append("--").append(my_id);
-            string cinfo = enc_msg(info, host_list[*it].password).append(MSG_DELIM);
+            string cinfo = enc_msg(info, calculate_totp(host_list[*it].password, host_list[*it].address)).append(MSG_DELIM);
             send(host_list[*it].socket, cinfo.c_str(), cinfo.length(), 0);
             // Give receiver time to complete current set of commands and
             // mark this host as busy to allow direct network communication
@@ -167,7 +168,7 @@ namespace Cluster {
 
             // Start sending file data
             string metadata = path.append("::").append(to_string(length));
-            string ctxt = enc_msg(metadata, host_list[*it].password);
+            string ctxt = enc_msg(metadata, calculate_totp(host_list[*it].password, host_list[*it].address));
             PRINTD(5, 1, "Sending metadata");
             send(host_list[*it].socket, ctxt.c_str(), ctxt.length(), 0);
             char *buf = create_str(8);
@@ -183,7 +184,7 @@ namespace Cluster {
             }
             free(buf);
 
-            ctxt = enc_msg(fdata, host_list[*it].password);
+            ctxt = enc_msg(fdata, calculate_totp(host_list[*it].password, host_list[*it].address));
             send(host_list[*it].socket, ctxt.c_str(), ctxt.length(), 0);
         }
         return NULL;
@@ -438,7 +439,7 @@ namespace Cluster {
         hosts_online.push_back(client.id);
         host_list[hostid].socket = sock;
         // TODO this will fail if I was offline past a key change
-        string msg = enc_msg(host_list[int_id].address, host_list[int_id].password);
+        string msg = enc_msg(host_list[int_id].address, calculate_totp(host_list[int_id].password, host_list[int_id].address));
         string data;
         data.reserve(my_id.length() + 3 + msg.length());
         data.append(my_id).append("--").append(msg);
