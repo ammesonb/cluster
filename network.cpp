@@ -164,7 +164,6 @@ namespace Cluster {
             send(host_list[*it].socket, cinfo.c_str(), cinfo.length(), 0);
             // Give receiver time to complete current set of commands and
             // mark this host as busy to allow direct network communication
-            usleep(50000);
 
             // Start sending file data
             string metadata = path.append("::").append(to_string(length));
@@ -194,7 +193,7 @@ namespace Cluster {
         int hid = *((int*)arg);
         char *buf = create_str(1024);
         PRINTD(4, 0, "NET", "Waiting to receive filedata from %d", hid);
-        while (recv(host_list[hid].socket, buf, 1024, MSG_DONTWAIT) <= 0) usleep(250000);
+        while (recv(host_list[hid].socket, buf, 1024, MSG_DONTWAIT) <= 0) usleep(10000);
         host_list[hid].last_msg = get_cur_time();
         string fdata = string(buf, 0, strlen(buf));
         int level = get_split_level();
@@ -219,7 +218,7 @@ namespace Cluster {
         free(buf);
         send(host_list[hid].socket, "OK", 2, 0);
         char *data = create_str(dlen);
-        while (recv(host_list[hid].socket, buf, dlen, MSG_DONTWAIT) <= 0) usleep(250000);
+        while (recv(host_list[hid].socket, buf, dlen, MSG_DONTWAIT) <= 0) usleep(10000);
         host_list[hid].last_msg = get_cur_time();
         ofstream ofile;
         ofile.open(STRLITFIX(fname.c_str()));
@@ -285,7 +284,7 @@ namespace Cluster {
                                 pthread_t file_thread;
                                 int *hid = (int*)malloc(sizeof(int*));
                                 *hid = *it;
-                                hosts_busy.push_back(hid);
+                                hosts_busy.push_back(*hid);
                                 pthread_create(&file_thread, NULL, recv_file, hid);
                                 usleep(100000);
                             } else if (command == "dyn") {
