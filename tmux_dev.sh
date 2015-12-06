@@ -1,4 +1,5 @@
 #!/bin/bash
+export TERM=xterm-256color
 tmux -S /tmp/cluster_dev new-session -d -s cluster_dev \; send-keys "vi cluster.cpp" Enter \; rename-window cpp
 tmux -S /tmp/cluster_dev new-window -t cluster_dev -n common \; send-keys "vi common.cpp" Enter \; split-window -h \; select-layout main-vertical \; send-keys -t 1 "vi common.h" Enter
 tmux -S /tmp/cluster_dev new-window -t cluster_dev -n net \; send-keys "vi network.cpp" Enter \; split-window -h \; select-layout main-vertical \; send-keys -t 1 "vi network.h" Enter
