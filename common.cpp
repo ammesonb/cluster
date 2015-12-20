@@ -19,7 +19,6 @@ using std::ifstream;
 namespace Cluster {
     int PRINTD_INDENT_LEVEL = 0;
 
-    // TODO consider using keys instead of numeric arrays for split level
     map<string, int> last_string_split_offset;
     map<string, int> string_split_offset;
     map<string, string> string_split_source;
