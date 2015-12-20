@@ -153,10 +153,6 @@ int main(int argc, char *argv[]) {/*{{{*/
     // Load configuration /*{{{*/
     cfg = cfg_init(config, 0);
     cfg_parse(cfg, "cluster.conf");
-    // For some reason this variable is corrupted in cfg_parse, specifically
-    // set to 0 in cfg_set_opt, so need to restore it to avoid attempting to
-    // check a nonexistent level 0 split, causing a segfault
-    set_split_level(-1);
 
     PRINTD(1, 1, "MAIN", "Found debug level %d", debug);
 
@@ -180,22 +176,23 @@ int main(int argc, char *argv[]) {/*{{{*/
 
     PRINTD(3, 1, "MAIN", "Creating list of synchronized files");/*{{{*/
     string c_files = trim(string(crit_files));
-    start_split(c_files, "\n");
-    string file = trim(get_split());
+    start_split(c_files, "\n", STRLITFIX("cfiles"));
+    string file = trim(get_split(STRLITFIX("cfiles")));
     while (file.length() != 0) {
         sync_files.push_back(file);
-        file = trim(get_split());
+        file = trim(get_split(STRLITFIX("cfiles")));
     }
-    end_split(0);
+    end_split(STRLITFIX("cfiles"));
 
     string c_dirs = string(crit_dirs);
-    start_split(c_dirs, ",");
-    string dir = trim(get_split());
+    start_split(c_dirs, ",", STRLITFIX("cdirs"));
+    string dir = trim(get_split(STRLITFIX("cdirs")));
     while (dir.length() != 0) {
         vector<string> f = get_directory_files((char*)dir.c_str());
         sync_files.insert(sync_files.end(), f.begin(), f.end());
-        dir = trim(get_split());
+        dir = trim(get_split(STRLITFIX("cdirs")));
     }
+    end_split(STRLITFIX("cdirs"));
 
     ITERVECTOR(serv_list, it) {
         Service s = (*it).second;

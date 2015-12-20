@@ -11,6 +11,7 @@
 #include <openssl/evp.h>
 #include <dirent.h>
 
+using std::map;
 using std::vector;
 using std::string;
 using std::ifstream;
@@ -19,119 +20,122 @@ namespace Cluster {
     int PRINTD_INDENT_LEVEL = 0;
 
     // TODO consider using keys instead of numeric arrays for split level
-    int string_split_level = -1;
-    vector<int> last_string_split_offset;
-    vector<int> string_split_offset;
-    vector<string> string_split_source;
-    vector<string> string_split_delim;
+    map<string, int> last_string_split_offset;
+    map<string, int> string_split_offset;
+    map<string, string> string_split_source;
+    map<string, string> string_split_delim;
 
     static const char *hex_alpha = "0123456789ABCDEF";
 
     bool validate_host_config() { /*{{{*/
         bool valid = true;
         string hosts = read_file(STRLITFIX("hosts"));
-        start_split(hosts, "\n");
-        string ho = get_split();
+        start_split(hosts, "\n", STRLITFIX("valhost"));
+        string ho = get_split(STRLITFIX("valhost"));
         int host_num = 0;
         while (ho.length() > 0) {
-            start_split(ho, " ");
-            string hostname = get_split();
+            start_split(ho, " ", STRLITFIX("checkhost"));
+            string hostname = get_split(STRLITFIX("checkhost"));
             if (hostname.length() == 0) {valid = false; PRINTD(0, 0, "CONF", "Bad formatting for host on line %d, requires hostname", host_num);}
-            string host_port = get_split();
+            string host_port = get_split(STRLITFIX("checkhost"));
             if (host_port.length() == 0) {valid = false; PRINTD(0, 0, "CONF", "Bad formatting for host on line %d, requires port", host_num);}
-            string host_pass = get_split();
+            string host_pass = get_split(STRLITFIX("checkhost"));
             if (host_pass.length() == 0) {valid = false; PRINTD(0, 0, "CONF", "Bad formatting for host on line %d, host requires password for validation", host_num);}
 
-            if (get_split().length() != 0) {valid = false; PRINTD(0, 0, "CONF", "Bad formatting for host on line %d, extra data found", host_num);}
-            end_split(1);
-            ho = get_split();
+            if (get_split(STRLITFIX("checkhost")).length() != 0) {valid = false; PRINTD(0, 0, "CONF", "Bad formatting for host on line %d, extra data found", host_num);}
+            end_split(STRLITFIX("checkhost"));
+            ho = get_split(STRLITFIX("valhost"));
             host_num++;
         }
+        end_split(STRLITFIX("valhost"));
         return valid;
     } /*}}}*/
 
     void load_host_config() { /*{{{*/
         if (!validate_host_config()) {PRINTD(0, 0, "CONF", "Found invalid host configuration!"); return;}
         string hosts = read_file(STRLITFIX("hosts"));
-        start_split(hosts, "\n");
-        string ho = get_split();
+        start_split(hosts, "\n", STRLITFIX("loadhosts"));
+        string ho = get_split(STRLITFIX("loadhosts"));
         int host_num = 0;
         while (ho.length() > 0) {
             Host host;
-            start_split(ho, " ");
-            string hostname = get_split();
+            start_split(ho, " ", STRLITFIX("loadhost"));
+            string hostname = get_split(STRLITFIX("loadhost"));
             PRINTD(3, 2, "CONF", "Parsing host %s", hostname.c_str());
             host.address = hostname;
             host.id = host_num;
-            string host_port = get_split();
+            string host_port = get_split(STRLITFIX("loadhost"));
             host.port = stoi(host_port);
             PRINTD(4, 3, "CONF", "Host is on port %d", host.port);
             bool dyn = false;
             if (is_ip(hostname)) {dyn = true; PRINTDI(3, "CONF", "Host is dynamic");}
             host.dynamic = dyn;
-            string host_pass = get_split();
+            string host_pass = get_split(STRLITFIX("loadhost"));
 
             host.password = host_pass;
-            end_split(1);
-            ho = get_split();
+            end_split(STRLITFIX("loadhost"));
+            ho = get_split(STRLITFIX("loadhosts"));
             host_list[host_num] = host;
             host_num++;
         } 
+        end_split(STRLITFIX("loadhosts"));
     } /*}}}*/
 
     bool validate_service_config() {/*{{{*/
         bool valid = true;
         string services = read_file(STRLITFIX("services"));
-        start_split(services, "\n");
-        string serv = get_split();
+        start_split(services, "\n", STRLITFIX("valservices"));
+        string serv = get_split(STRLITFIX("valservices"));
         int serv_num = 0;
         while (serv.length() > 0) {
-            string servname = get_split();
+            start_split(serv, " ", STRLITFIX("valservice"));
+            string servname = get_split(STRLITFIX("valservice"));
             if (servname.length() == 0) {valid = false; PRINTD(0, 0, "CONF", "Bad formatting for service on line %d, requires name", serv_num);}                     
-            string host1 = get_split();
+            string host1 = get_split(STRLITFIX("valservice"));
             if (host1.length() == 0) {valid = false; PRINTD(0, 0, "CONF", "Bad formatting for service on line %d, requires at least one host", serv_num);}
             int hosts_found = 1;
-            while (get_split_level() == 1) {
-                string host = get_split();
+            while (split_active(STRLITFIX("valservice"))) {
+                string host = get_split(STRLITFIX("valservice"));
                 if (hosts_found == 1 && host.length() == 0) PRINTD(2, 3, "CONF", "Service %s only has one host! Consider adding another for redundancy.", servname.c_str());
                 if (host.length() == 0) break;
                 hosts_found++;
             }
-            end_split(1);
-            serv = get_split();
+            end_split(STRLITFIX("valservice"));
+            serv = get_split(STRLITFIX("valservices"));
             serv_num++;
         }
+        end_split(STRLITFIX("valservices"));
         return valid;
     }/*}}}*/
 
     void load_service_config() {/*{{{*/
         if (!validate_service_config()) {PRINTD(0, 0, "CONF", "Found invalid service configuration!"); return;}
         string services = read_file(STRLITFIX("services"));
-        start_split(services, "\n");
-        string serv = get_split();
+        start_split(services, "\n", STRLITFIX("loadservices"));
+        string serv = get_split(STRLITFIX("loadservices"));
         int serv_num = 0;
         map<int, vector<Service>> host_services;
         while (serv.length() > 0) {
             // Get service details
             Service service;
             vector<Host> serv_hosts;
-            start_split(serv, " ");
-            string servname = get_split();
+            start_split(serv, " ", STRLITFIX("loadservice"));
+            string servname = get_split(STRLITFIX("loadservice"));
             service.name = servname;
             PRINTD(3, 2, "CONF", "Parsing service %s", servname.c_str());
-            string host1 = get_split();
+            string host1 = get_split(STRLITFIX("loadservice"));
             PRINTD(5, 3, "CONF", "Host %s is subscribed", host_list[stoi(host1)].address.c_str());
             serv_hosts.push_back(host_list[stoi(host1)]);
             // For each host registered with the service
-            while (get_split_level() == 1) {
-                string host = get_split();
+            while (split_active(STRLITFIX("loadservice"))) {
+                string host = get_split(STRLITFIX("loadservice"));
                 if (host.length() == 0) break;
                 PRINTDI(5, "CONF", "Host %s is subscribed", host_list[stoi(host)].address.c_str());
                 serv_hosts.push_back(host_list[stoi(host)]);
             }
             PRINTD(4, 3, "CONF", "Found %lu hosts", serv_hosts.size());
-            end_split(1);
-            serv = get_split();
+            end_split(STRLITFIX("loadservice"));
+            serv = get_split(STRLITFIX("loadservices"));
             service.hosts = serv_hosts;
             serv_list[serv_num] = service;
             // For each host this service has registered
@@ -140,6 +144,7 @@ namespace Cluster {
                 host_services[(*it).id].push_back(service);
             serv_num++;
         }
+        end_split(STRLITFIX("loadservices"));
 
         // Once all services are parsed, attribute services to hosts
         PRINTD(5, 3, "CONF", "Adding services to hosts");
@@ -198,64 +203,60 @@ namespace Cluster {
     }/*}}}*/
 
     // String split getters/*{{{*/
-    string sp_getsrc() {
-        return string_split_source[string_split_level];
+    string sp_getsrc(string key) {
+        return string_split_source.at(key);
     }
 
-    string sp_getdel() {
-        return string_split_delim[string_split_level];
+    string sp_getdel(string key) {
+        return string_split_delim.at(key);
     }
 
-    int sp_getoff() {
-        return string_split_offset[string_split_level];
+    int sp_getoff(string key) {
+        return string_split_offset.at(key);
     }
 
-    int sp_getlastoff() {
-        return last_string_split_offset[string_split_level];
+    int sp_getlastoff(string key) {
+        return last_string_split_offset.at(key);
     }/*}}}*/
 
-    int get_split_level() {/*{{{*/
-        return string_split_level;
+    void start_split(string src, string delim, char *k) {/*{{{*/
+        string key = string(k);
+        PRINTDI(5, "COMMON", "Starting split level %s", (char*)key.c_str());
+        string_split_source[key] = src;
+        string_split_delim[key] = delim;
+        string_split_offset[key] = 0;
+        last_string_split_offset[key] = 0;
     }/*}}}*/
 
-    void set_split_level(int l) {/*{{{*/
-        string_split_level = l;
-    }/*}}}*/
-
-    void start_split(string s, string d) {/*{{{*/
-        if (string_split_level != -1 && string_split_offset[string_split_level] != 0) string_split_level++;
-        if (string_split_level == -1) string_split_level = 0;
-        PRINTDI(5, "COMMON", "Starting split level %d", string_split_level);
-        string_split_source.push_back(s);
-        string_split_delim.push_back(d);
-        string_split_offset.push_back(0);
-        last_string_split_offset.push_back(0);
-    }/*}}}*/
-
-    string get_split() {/*{{{*/
-        if (sp_getsrc().find(sp_getdel(), sp_getoff()) > sp_getsrc().length() && sp_getsrc().length() - sp_getoff() == 0) {
-            end_split(string_split_level);
+    string get_split(char *k) {/*{{{*/
+        string key = string(k);
+        if (sp_getsrc(key).find(sp_getdel(key), sp_getoff(key)) > sp_getsrc(key).length() && sp_getsrc(key).length() - sp_getoff(key) == 0) {
+            end_split(k);
             return "";
         }
         //PRINTDI(5, 0, "COMMON", "Found token at %d for delimiter %d", sp_getsrc().find(sp_getdel(), sp_getoff()), sp_getdel().c_str()[0]);
-        last_string_split_offset[string_split_level] = sp_getoff();
-        string_split_offset[string_split_level] = sp_getsrc().find(sp_getdel(), sp_getoff());
-        if (sp_getoff() > sp_getsrc().length()) string_split_offset[string_split_level] = sp_getsrc().length();
-        PRINTDI(5, "COMMON", "Returning substr from %d to %d", sp_getlastoff(), sp_getoff());
-        string string_split_ret = sp_getsrc().substr(sp_getlastoff(), sp_getoff() - sp_getlastoff());
-        if (sp_getoff() < sp_getsrc().length())
-            string_split_offset[string_split_level] = sp_getoff() + sp_getdel().length();
+        last_string_split_offset[key] = sp_getoff(key);
+        string_split_offset[key] = sp_getsrc(key).find(sp_getdel(key), sp_getoff(key));
+        if (sp_getoff(key) > sp_getsrc(key).length()) string_split_offset[key] = sp_getsrc(key).length();
+        PRINTDI(5, "COMMON", "Returning substr from %d to %d", sp_getlastoff(key), sp_getoff(key));
+        string string_split_ret = sp_getsrc(key).substr(sp_getlastoff(key), sp_getoff(key) - sp_getlastoff(key));
+        if (sp_getoff(key) < sp_getsrc(key).length())
+            string_split_offset[key] = sp_getoff(key) + sp_getdel(key).length();
         return string_split_ret;
     }/*}}}*/
 
-    void end_split(int level) {/*{{{*/
-        if (string_split_level != level) return;
-        PRINTDI(5, "COMMON", "Ending split level %d", string_split_level);
-        last_string_split_offset.pop_back();
-        string_split_offset.pop_back();
-        string_split_source.pop_back();
-        string_split_delim.pop_back();
-        string_split_level--;
+    bool split_active(char *k) {/*{{{*/
+        string key = string(k);
+        return string_split_source.count(key) == 1;
+    }/*}}}*/
+
+    void end_split(char *k) {/*{{{*/
+        string key = string(k);
+        PRINTDI(5, "COMMON", "Ending split level %s", (char*)key.c_str());
+        last_string_split_offset.erase(key);
+        string_split_offset.erase(key);
+        string_split_source.erase(key);
+        string_split_delim.erase(key);
     }/*}}}*/
 
     time_t get_cur_time() {/*{{{*/

@@ -87,11 +87,10 @@ namespace Cluster {
 
     vector<string> get_directory_files(char *dir);
 
-    void start_split(string source, string delim);
-    int get_split_level();
-    void set_split_level(int l);
-    string get_split();
-    void end_split(int level);
+    void start_split(string source, string delim, char *key);
+    string get_split(char *key);
+    bool split_active(char *key);
+    void end_split(char *key);
 
     char* create_str(int length);
     time_t get_cur_time();

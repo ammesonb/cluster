@@ -196,9 +196,8 @@ namespace Cluster {
         while (recv(host_list[hid].socket, buf, 1024, MSG_DONTWAIT) <= 0) usleep(10000);
         host_list[hid].last_msg = get_cur_time();
         string fdata = string(buf, 0, strlen(buf));
-        int level = get_split_level();
-        start_split(fdata, "::");
-        string fname = get_split();
+        start_split(fdata, "::", STRLITFIX("rfile"));
+        string fname = get_split(STRLITFIX("rfile"));
         const char *name = filename(fname).c_str();
         char *dircmd = create_str(fname.length() + 20);
         PRINTD(3, 0, "NET", "Receiving file %s, path %s", name, (char*)dirname(fname).c_str());
@@ -206,7 +205,8 @@ namespace Cluster {
         system(dircmd);
         free(dircmd);
 
-        int dlen = std::stoi(get_split());
+        int dlen = std::stoi(get_split(STRLITFIX("rfile")));
+        end_split(STRLITFIX("rfile"));
         if (dlen <= 0) {
             PRINTD(1, 0, "NET", "File transfer of %s from %d failed", fname.c_str(), hid);
             send(host_list[hid].socket, "FAIL", 4, 0);
@@ -214,7 +214,6 @@ namespace Cluster {
             hosts_busy.erase(std::remove(VECTORFIND(hosts_busy, hid)), hosts_busy.end());
             return NULL;
         }
-        end_split(level);
         free(buf);
         send(host_list[hid].socket, "OK", 2, 0);
         char *data = create_str(dlen);
@@ -262,8 +261,8 @@ namespace Cluster {
                     if (data.length() > 0) {
                         PRINTD(5, 0, "RECV", "Received %lu bytes", data.length());
                         // TODO check this works
-                        start_split(data, MSG_DELIM);
-                        string msg = get_split();
+                        start_split(data, MSG_DELIM, STRLITFIX("cmd"));
+                        string msg = get_split(STRLITFIX("cmd"));
                         while (msg.length() > 0) {
                             PRINTD(5, 0, "RECV", "Found command with length %lu", msg.length());
                             host_list[*it].last_msg = get_cur_time();
@@ -271,14 +270,13 @@ namespace Cluster {
                             // Check if ping
                             if (std::to_string(*it).append("-ping").compare(msg) == 0) {
                                 PRINTD(4, 0, "RECV", "Got ping message from %d", *it);
-                                msg = get_split();
+                                msg = get_split(STRLITFIX("cmd"));
                                 continue;
                             }
 
                             // Parse command
-                            start_split(msg, "--");
-                            int command_level = get_split_level();
-                            string command = get_split();
+                            start_split(msg, "--", STRLITFIX("subcmd"));
+                            string command = get_split(STRLITFIX("subcmd"));
                             PRINTD(4, 0, "RECV", "Received command %s from host %d", command.c_str(), *it);
                             if (strcmp(command.c_str(), "fs") == 0) {
                                 pthread_t file_thread;
@@ -294,9 +292,10 @@ namespace Cluster {
                                 int hid = *it;
                                 pthread_create(&off_t, NULL, notify_offline, &hid);
                             }
-                            end_split(command_level);
-                            msg = get_split();
+                            end_split(STRLITFIX("subcmd"));
+                            msg = get_split(STRLITFIX("cmd"));
                         }
+                        end_split(STRLITFIX("cmd"));
                     }
                 } else {
                     PRINTD(4, 0, "RECV", "Host %d is busy", *it);
@@ -337,11 +336,10 @@ namespace Cluster {
             hostdata.reserve(read);
             hostdata.append(data);
             free(data);
-            start_split(hostdata, "--");
-            int level = get_split_level();
-            int hostid = stoi(get_split());
-            string hostname = dec_msg(get_split(), calculate_totp(host_list[hostid].password, host_list[hostid].address));
-            end_split(level);
+            start_split(hostdata, "--", STRLITFIX("hostacc"));
+            int hostid = stoi(get_split(STRLITFIX("hostacc")));
+            string hostname = dec_msg(get_split(STRLITFIX("hostacc")), calculate_totp(host_list[hostid].password, host_list[hostid].address));
+            end_split(STRLITFIX("hostacc"));
             PRINTD(3, 0, "NET", "Got attempted host connection from ID %d: %s", hostid, hostname.c_str());
             string ip;
             ip.assign(addr);
