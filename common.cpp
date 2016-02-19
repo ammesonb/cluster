@@ -75,6 +75,8 @@ namespace Cluster {
             end_split(STRLITFIX("loadhost"));
             ho = get_split(STRLITFIX("loadhosts"));
             host_list[host_num] = host;
+
+            sem_init(&hosts_busy[host_num], 0, 1);
             host_num++;
         } 
         end_split(STRLITFIX("loadhosts"));
@@ -364,5 +366,11 @@ namespace Cluster {
 
     string trim(string s) {/*{{{*/
             return ltrim(rtrim(s));
+    }/*}}}*/
+
+    bool sem_locked(sem_t sem) {/*{{{*/
+        int v;
+        sem_getvalue(&sem, &v);
+        return v > 0;
     }/*}}}*/
 }

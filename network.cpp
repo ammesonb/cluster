@@ -115,8 +115,10 @@ namespace Cluster {
         int hostid = *((int*)arg);
         while (keep_running) {
             usleep((float)interval / 3.0 * 100000.0);
-            if (std::find(VECTORFIND(hosts_busy, hostid)) != hosts_busy.end()) {
+            if (sem_locked(hosts_busy[hostid])) {
+            //if (std::find(VECTORFIND(hosts_busy, hostid)) != hosts_busy.end()) {
                 PRINTD(4, 0, "SEND", "Host %d is busy", hostid);
+                continue;
             }
             PRINTD(5, 0, "SEND", "Checking message queue for %s", host_list[hostid].address.c_str());
             ITERVECTOR(send_message_queue[hostid], it) {
@@ -211,7 +213,9 @@ namespace Cluster {
             PRINTD(1, 0, "NET", "File transfer of %s from %d failed", fname.c_str(), hid);
             send(host_list[hid].socket, "FAIL", 4, 0);
             free(arg);
-            hosts_busy.erase(std::remove(VECTORFIND(hosts_busy, hid)), hosts_busy.end());
+            // TODO check this value
+            sem_post(&hosts_busy[hid]);
+            //hosts_busy.erase(std::remove(VECTORFIND(hosts_busy, hid)), hosts_busy.end());
             return NULL;
         }
         free(buf);
@@ -238,7 +242,8 @@ namespace Cluster {
         }
 
         free(arg);
-        hosts_busy.erase(std::remove(VECTORFIND(hosts_busy, hid)), hosts_busy.end());
+        sem_post(&hosts_busy[hid]);
+        //hosts_busy.erase(std::remove(VECTORFIND(hosts_busy, hid)), hosts_busy.end());
         return NULL;
     }/*}}}*/
 
@@ -246,7 +251,8 @@ namespace Cluster {
         while (keep_running) {
             usleep((float)interval / 3.0 * 100000.0);
             ITERVECTOR(hosts_online, it) {
-                if (std::find(VECTORFIND(hosts_busy, *it)) == hosts_busy.end()) {
+                if (!sem_locked(hosts_busy[*it])) {
+                //if (std::find(VECTORFIND(hosts_busy, *it)) == hosts_busy.end()) {
                     // Read all available data
                     string data;
                     char *buf = create_str(1024);
@@ -282,7 +288,9 @@ namespace Cluster {
                                 pthread_t file_thread;
                                 int *hid = (int*)malloc(sizeof(int*));
                                 *hid = *it;
-                                hosts_busy.push_back(*hid);
+                                // TODO check this return value
+                                sem_wait(&hosts_busy[*hid]);
+                                //hosts_busy.push_back(*hid);
                                 pthread_create(&file_thread, NULL, recv_file, hid);
                                 usleep(100000);
                             } else if (command == "dyn") {

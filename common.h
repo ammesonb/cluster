@@ -43,6 +43,7 @@
 #include <sys/time.h>
 #include <dbus/dbus.h>
 #include <confuse.h>
+#include <semaphore.h>
 #include <vector>
 #include <map>
 
@@ -64,7 +65,7 @@ namespace Cluster {
     extern map<int, Host> host_list;
     extern map<int, Service> serv_list;
     extern vector<int> hosts_online;
-    extern vector<int> hosts_busy;
+    extern map<int, sem_t> hosts_busy;
     extern vector<int> running_services;
     extern map<int, vector<string>> send_message_queue;
 
@@ -107,5 +108,7 @@ namespace Cluster {
     string ltrim(string s);
     string rtrim(string s);
     string trim(string s);
+    
+    bool sem_locked(sem_t sem);
 }
 #endif

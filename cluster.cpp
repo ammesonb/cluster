@@ -88,7 +88,7 @@ namespace Cluster {/*{{{*/
 
     map<int, Host> host_list;
     map<int, Service> serv_list;
-    vector<int> hosts_busy;
+    map<int, sem_t> hosts_busy;
     vector<int> hosts_online;
     vector<int> running_services;
     map<int, vector<string>> send_message_queue;
