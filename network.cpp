@@ -193,6 +193,10 @@ namespace Cluster {
 
     void* recv_file(void *arg) {/*{{{*/
         int hid = *((int*)arg);
+        int ret = sem_wait(&hosts_busy[hid]);
+        if (ret) {
+            PRINTD(1, 0, "NET", "Failed to lock semaphore");
+        }
         char *buf = create_str(1024);
         PRINTD(4, 0, "NET", "Waiting to receive filedata from %d", hid);
         while (recv(host_list[hid].socket, buf, 1024, MSG_DONTWAIT) <= 0) usleep(10000);
@@ -213,8 +217,10 @@ namespace Cluster {
             PRINTD(1, 0, "NET", "File transfer of %s from %d failed", fname.c_str(), hid);
             send(host_list[hid].socket, "FAIL", 4, 0);
             free(arg);
-            // TODO check this value
-            sem_post(&hosts_busy[hid]);
+            int ret = sem_post(&hosts_busy[hid]);
+            if (ret != 0) {
+                PRINTD(1, 0, "NET", "Failed to release semaphore");
+            }
             //hosts_busy.erase(std::remove(VECTORFIND(hosts_busy, hid)), hosts_busy.end());
             return NULL;
         }
@@ -242,7 +248,10 @@ namespace Cluster {
         }
 
         free(arg);
-        sem_post(&hosts_busy[hid]);
+        ret = sem_post(&hosts_busy[hid]);
+        if (ret != 0) {
+            PRINTD(1, 0, "NET", "Failed to release semaphore");
+        }
         //hosts_busy.erase(std::remove(VECTORFIND(hosts_busy, hid)), hosts_busy.end());
         return NULL;
     }/*}}}*/
@@ -288,8 +297,6 @@ namespace Cluster {
                                 pthread_t file_thread;
                                 int *hid = (int*)malloc(sizeof(int*));
                                 *hid = *it;
-                                // TODO check this return value
-                                sem_wait(&hosts_busy[*hid]);
                                 //hosts_busy.push_back(*hid);
                                 pthread_create(&file_thread, NULL, recv_file, hid);
                                 usleep(100000);
@@ -450,7 +457,7 @@ namespace Cluster {
         host_list[hostid].online = true;
         hosts_online.push_back(client.id);
         host_list[hostid].socket = sock;
-        // TODO this will fail if I was offline past a key change
+
         string msg = enc_msg(host_list[int_id].address, calculate_totp(host_list[int_id].password, host_list[int_id].address));
         string data;
         data.reserve(my_id.length() + 3 + msg.length());

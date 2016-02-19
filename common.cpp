@@ -76,7 +76,10 @@ namespace Cluster {
             ho = get_split(STRLITFIX("loadhosts"));
             host_list[host_num] = host;
 
-            sem_init(&hosts_busy[host_num], 0, 1);
+            int ret = sem_init(&hosts_busy[host_num], 0, 1);
+            if (ret != 0) {
+                PRINTD(1, 3, "CONF", "Failed to create semaphore on host num %d", host_num);
+            }
             host_num++;
         } 
         end_split(STRLITFIX("loadhosts"));
@@ -371,6 +374,6 @@ namespace Cluster {
     bool sem_locked(sem_t sem) {/*{{{*/
         int v;
         sem_getvalue(&sem, &v);
-        return v > 0;
+        return v <= 0;
     }/*}}}*/
 }
