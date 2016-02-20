@@ -244,7 +244,7 @@ namespace Cluster {
         }
 
         free(arg);
-        ret = sem_post(&hosts_busy[hid]);
+        int ret = sem_post(&hosts_busy[hid]);
         if (ret != 0) {
             PRINTD(1, 0, "NET", "Failed to release semaphore");
         }
@@ -294,7 +294,7 @@ namespace Cluster {
                                 int *hid = (int*)malloc(sizeof(int*));
                                 *hid = *it;
                                 //hosts_busy.push_back(*hid);
-                                int ret = sem_wait(&hosts_busy[hid]);
+                                int ret = sem_wait(&hosts_busy[*hid]);
                                 if (ret) {
                                     PRINTD(1, 0, "NET", "Failed to lock semaphore");
                                 }
