@@ -31,6 +31,11 @@
 #include "service.h"
 #include "network.h"
 
+// TODO crashes if a host drops offline and reconnects before other host notices it is offline
+//      Hard to reproduce
+// TODO File sending sync error
+// TODO TOTP clock skew
+
  // Introspection for DBus/*{{{*/
  const char *introspec_xml =
  "<!DOCTYPE node PUBLIC \"-//freedesktop//DTD D-BUS Object Introspection 1.0//EN\"\n"

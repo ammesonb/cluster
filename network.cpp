@@ -193,10 +193,6 @@ namespace Cluster {
 
     void* recv_file(void *arg) {/*{{{*/
         int hid = *((int*)arg);
-        int ret = sem_wait(&hosts_busy[hid]);
-        if (ret) {
-            PRINTD(1, 0, "NET", "Failed to lock semaphore");
-        }
         char *buf = create_str(1024);
         PRINTD(4, 0, "NET", "Waiting to receive filedata from %d", hid);
         while (recv(host_list[hid].socket, buf, 1024, MSG_DONTWAIT) <= 0) usleep(10000);
@@ -274,7 +270,7 @@ namespace Cluster {
                     
                     // If data is actually found
                     if (data.length() > 0) {
-                        PRINTD(5, 0, "RECV", "Received %lu bytes", data.length());
+                        PRINTD(4, 0, "RECV", "Received %lu bytes", data.length());
                         // TODO check this works
                         start_split(data, MSG_DELIM, STRLITFIX("cmd"));
                         string msg = get_split(STRLITFIX("cmd"));
@@ -298,8 +294,11 @@ namespace Cluster {
                                 int *hid = (int*)malloc(sizeof(int*));
                                 *hid = *it;
                                 //hosts_busy.push_back(*hid);
+                                int ret = sem_wait(&hosts_busy[hid]);
+                                if (ret) {
+                                    PRINTD(1, 0, "NET", "Failed to lock semaphore");
+                                }
                                 pthread_create(&file_thread, NULL, recv_file, hid);
-                                usleep(100000);
                             } else if (command == "dyn") {
                                 // TODO dynamic host
                             } else if (command == "off") {
