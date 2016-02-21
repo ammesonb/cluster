@@ -35,6 +35,7 @@
 //      Hard to reproduce
 // TODO File sending sync error
 // TODO TOTP clock skew
+// TODO detect new files in sync'ed folders
 
  // Introspection for DBus/*{{{*/
  const char *introspec_xml =
@@ -143,6 +144,7 @@ namespace Cluster {/*{{{*/
     void queue_keepalive() {/*{{{*/
         PRINTD(4, 0, "MAIN", "Queueing keepalive to %lu hosts", hosts_online.size());
         ITERVECTOR(hosts_online, it) {
+            if (sem_locked(hosts_busy[*it])) continue;
             Host h = host_list[*it];
             send_message_queue[h.id].push_back(ping_msg);
         }
@@ -240,7 +242,9 @@ int main(int argc, char *argv[]) {/*{{{*/
     PRINTD(3, 1, "MAIN", "Plain: %s", ping_msg.c_str());
     string out = enc_msg(ping_msg, string("password"));
     PRINTD(3, 1, "MAIN", "Enc: %s", out.c_str());
-    string pt = dec_msg(out, string("password"));
+    vector<string> p;
+    p.push_back("password");
+    string pt = dec_msg(out, p);
     PRINTD(3, 1, "MAIN", "Dec: %s", pt.c_str());
     if (pt != ping_msg) {DIE("AES encrypt/decrypt didn't return same value!");}/*}}}*/
 

@@ -76,7 +76,9 @@ namespace Cluster {
         return hexlify(iv, 32).append(hexlify(outbuf, outlen));
     }/*}}}*/
 
-    string dec_msg(string msg, string passwd) {/*{{{*/
+    string dec_msg(string msg, vector<string> passwd_opts) {/*{{{*/
+        // Multiple passwords to account for clock skew
+
         // Keep an extra 10% of space available for padding
         // and at least 16 bytes for PKCS7 padding
         unsigned char outbuf[int(msg.length() * 1.1) + 16];
@@ -88,23 +90,36 @@ namespace Cluster {
         string iv = unhexlify(msg.substr(0, 64));
         string data = unhexlify(msg.substr(64, msg.length() - 64));
 
-        EVP_CIPHER_CTX ctx;
-        EVP_CIPHER_CTX_init(&ctx);
-        EVP_DecryptInit_ex(&ctx, EVP_aes_128_cbc(), NULL,
-                           (const unsigned char*)passwd.c_str(),
-                           (const unsigned char*)iv.c_str());
-        if (!EVP_DecryptUpdate(&ctx, outbuf, &outlen, (const unsigned char*)data.c_str(), data.length())) {
-            PRINTD(1, 0, "NET", "Decryption of message failed in DecryptUpdate");
-            return string("");
-        }
+        int i;
+        size_t pass_length = passwd_opts.size();
+        for (i = 0; i < passwd_opts.size(); i++) {
+            EVP_CIPHER_CTX ctx;
+            EVP_CIPHER_CTX_init(&ctx);
+            EVP_DecryptInit_ex(&ctx, EVP_aes_128_cbc(), NULL,
+                               (const unsigned char*)passwd_opts[i].c_str(),
+                               (const unsigned char*)iv.c_str());
+            if (!EVP_DecryptUpdate(&ctx, outbuf, &outlen, (const unsigned char*)data.c_str(), data.length())) {
+                if (i == pass_length - 1) {
+                    PRINTD(1, 0, "NET", "Decryption of message failed in DecryptUpdate");
+                    return string("");
+                } else {
+                    continue;
+                }
+            }
 
-        if (!EVP_DecryptFinal_ex(&ctx, outbuf + outlen, &secondlen)) {
-            PRINTD(1, 0, "NET", "Decryption of message failed in DecryptFinal");
-            return string("");
+            if (!EVP_DecryptFinal_ex(&ctx, outbuf + outlen, &secondlen)) {
+                if (i == pass_length - 1) {
+                    PRINTD(1, 0, "NET", "Decryption of message failed in DecryptFinal");
+                    return string("");
+                } else {
+                    continue;
+                }
+            }
+            outlen += secondlen;
+            EVP_CIPHER_CTX_cleanup(&ctx);
+            return string((char*)outbuf, outlen);
         }
-        outlen += secondlen;
-        EVP_CIPHER_CTX_cleanup(&ctx);
-        return string((char*)outbuf, outlen);
+        return "";
     }/*}}}*/
 
     bool rem_true(string s) {/*{{{*/
@@ -124,7 +139,7 @@ namespace Cluster {
             ITERVECTOR(send_message_queue[hostid], it) {
                 string msg = *it;
                 PRINTD(5, 1, "SEND", "Sending %s to %d", msg.c_str(), hostid);
-                string ctxt = enc_msg(msg, calculate_totp(host_list[hostid].password, host_list[hostid].address)).append(MSG_DELIM);
+                string ctxt = enc_msg(msg, get_totp(host_list[hostid].password, host_list[hostid].address, time(NULL))).append(MSG_DELIM);
                 // This blocks
                 send(host_list[hostid].socket, ctxt.c_str(), ctxt.length(), 0);
                 PRINTDI(5, "SEND", "Sent");
@@ -162,14 +177,14 @@ namespace Cluster {
             PRINTD(4, 0, "NET", "Sending file %s to host %d", path.c_str(), *it);
             // Inform receiver we are sending file
             string info = string("fs").append("--").append(my_id);
-            string cinfo = enc_msg(info, calculate_totp(host_list[*it].password, host_list[*it].address)).append(MSG_DELIM);
+            string cinfo = enc_msg(info, get_totp(host_list[*it].password, host_list[*it].address, time(NULL))).append(MSG_DELIM);
             send(host_list[*it].socket, cinfo.c_str(), cinfo.length(), 0);
             // Give receiver time to complete current set of commands and
             // mark this host as busy to allow direct network communication
 
             // Start sending file data
             string metadata = path.append("::").append(to_string(length));
-            string ctxt = enc_msg(metadata, calculate_totp(host_list[*it].password, host_list[*it].address));
+            string ctxt = enc_msg(metadata, get_totp(host_list[*it].password, host_list[*it].address, time(NULL)));
             PRINTD(5, 1, "NET", "Sending metadata");
             send(host_list[*it].socket, ctxt.c_str(), ctxt.length(), 0);
             char *buf = create_str(8);
@@ -180,12 +195,12 @@ namespace Cluster {
                 return NULL;
             } else if (strcmp(buf, "OK") != 0) {
                 // TODO um....
-                PRINTD(1, 0, "NET", "Received unknown response in sending file %s to host %d", path.c_str(), *it);
+                PRINTD(1, 0, "NET", "Received unknown response in sending file %s to host %d: %s", path.c_str(), *it, buf);
                 return NULL;
             }
             free(buf);
 
-            ctxt = enc_msg(fdata, calculate_totp(host_list[*it].password, host_list[*it].address));
+            ctxt = enc_msg(fdata, get_totp(host_list[*it].password, host_list[*it].address, time(NULL)));
             send(host_list[*it].socket, ctxt.c_str(), ctxt.length(), 0);
         }
         return NULL;
@@ -257,7 +272,6 @@ namespace Cluster {
             usleep((float)interval / 3.0 * 100000.0);
             ITERVECTOR(hosts_online, it) {
                 if (!sem_locked(hosts_busy[*it])) {
-                //if (std::find(VECTORFIND(hosts_busy, *it)) == hosts_busy.end()) {
                     // Read all available data
                     string data;
                     char *buf = create_str(1024);
@@ -457,7 +471,7 @@ namespace Cluster {
         hosts_online.push_back(client.id);
         host_list[hostid].socket = sock;
 
-        string msg = enc_msg(host_list[int_id].address, calculate_totp(host_list[int_id].password, host_list[int_id].address));
+        string msg = enc_msg(host_list[int_id].address, get_totp(host_list[int_id].password, host_list[int_id].address, time(NULL)));
         string data;
         data.reserve(my_id.length() + 3 + msg.length());
         data.append(my_id).append("--").append(msg);

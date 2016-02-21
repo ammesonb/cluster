@@ -11,7 +11,7 @@ namespace Cluster {
     string srecv(int sock);
 
     string enc_msg(string msg, string passwd);
-    string dec_msg(string msg, string passwd);
+    string dec_msg(string msg, vector<string> passwd_opts);
 
     void* send_file(string path);
 
