@@ -34,7 +34,6 @@
 // TODO crashes if a host drops offline and reconnects before other host notices it is offline
 //      Hard to reproduce
 // TODO File sending sync error
-// TODO TOTP clock skew
 // TODO detect new files in sync'ed folders
 
  // Introspection for DBus/*{{{*/
