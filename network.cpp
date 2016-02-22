@@ -191,11 +191,9 @@ namespace Cluster {
             memset(buf, '\0', 256);
             PRINTDI(3, "NET", "Sent initial message, waiting for acknowledgement");
             recv(host_list[*it].socket, buf, 256, 0);
-            printf("%s\n", buf);
             string msg = dec_msg(string(buf), calculate_totp(host_list[*it].password, host_list[*it].address));
-            printf("D: %s\n", msg.c_str());
             if (msg.compare("GO") != 0) {
-                PRINTD(1, 0, "NET", "Received unknown response in sending file %s to host %d: %s", path.c_str(), *it, msg.c_str());
+                PRINTD(1, 0, "NET", "Received unknown response in sending file %s to host %d: '%s'", path.c_str(), *it, msg.c_str());
                 if (ret != 0) {
                     PRINTD(1, 0, "NET", "Failed to release semaphore");
                 }
@@ -218,9 +216,9 @@ namespace Cluster {
                 }
                 PRINTD(1, 0, "NET", "Failed to send file %s to host %d", path.c_str(), *it);
                 continue;
-            } if (msg.compare("OK") != 0) {
+            } else if (msg.compare("OK") != 0) {
                 // TODO um....
-                PRINTD(1, 0, "NET", "Received unknown response in sending file %s to host %d: %s", path.c_str(), *it, msg.c_str());
+                PRINTD(1, 0, "NET", "Received unknown response in sending file %s to host %d: '%s'", path.c_str(), *it, msg.c_str());
                 int ret = sem_post(&hosts_busy[*it]);
                 if (ret != 0) {
                     PRINTD(1, 0, "NET", "Failed to release semaphore");
