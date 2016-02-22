@@ -203,7 +203,7 @@ namespace Cluster {
 
             // Start sending file data
             string metadata = path.append("::").append(to_string(length));
-            string ctxt = enc_msg(metadata, get_totp(host_list[*it].password, host_list[*it].address, time(NULL)));
+            string ctxt = enc_msg(metadata, get_totp(host_list[int_id].password, host_list[int_id].address, time(NULL)));
             PRINTD(5, 1, "NET", "Sending metadata");
             send(host_list[*it].socket, ctxt.c_str(), ctxt.length(), 0);
             recv(host_list[*it].socket, buf, 256, 0);
