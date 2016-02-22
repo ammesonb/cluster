@@ -95,6 +95,7 @@ namespace Cluster {
         int i;
         size_t pass_length = passwd_opts.size();
         for (i = 0; i < passwd_opts.size(); i++) {
+            PRINTDI(5, "NET", "Trying password %s\n", passwd_opts[i].c_str());
             EVP_CIPHER_CTX ctx;
             EVP_CIPHER_CTX_init(&ctx);
             EVP_DecryptInit_ex(&ctx, EVP_aes_128_cbc(), NULL,
@@ -190,11 +191,9 @@ namespace Cluster {
             memset(buf, '\0', 256);
             PRINTDI(3, "NET", "Sent initial message, waiting for acknowledgement");
             recv(host_list[*it].socket, buf, 256, 0);
-            printf("%s\n", buf);
-            string msg = dec_msg(buf, calculate_totp(host_list[*it].password, host_list[*it].address));
-            printf("D: %s\n", msg.c_str());
+            string msg = dec_msg(string(buf), calculate_totp(host_list[*it].password, host_list[*it].address));
             if (msg.compare("GO") != 0) {
-                PRINTD(1, 0, "NET", "Received unknown response in sending file %s to host %d: %s", path.c_str(), *it, msg.c_str());
+                PRINTD(1, 0, "NET", "Received unknown response in sending file %s to host %d: '%s'", path.c_str(), *it, msg.c_str());
                 if (ret != 0) {
                     PRINTD(1, 0, "NET", "Failed to release semaphore");
                 }
@@ -217,9 +216,9 @@ namespace Cluster {
                 }
                 PRINTD(1, 0, "NET", "Failed to send file %s to host %d", path.c_str(), *it);
                 continue;
-            } if (msg.compare("OK") != 0) {
+            } else if (msg.compare("OK") != 0) {
                 // TODO um....
-                PRINTD(1, 0, "NET", "Received unknown response in sending file %s to host %d: %s", path.c_str(), *it, msg.c_str());
+                PRINTD(1, 0, "NET", "Received unknown response in sending file %s to host %d: '%s'", path.c_str(), *it, msg.c_str());
                 int ret = sem_post(&hosts_busy[*it]);
                 if (ret != 0) {
                     PRINTD(1, 0, "NET", "Failed to release semaphore");
@@ -240,7 +239,7 @@ namespace Cluster {
         string smsg = enc_msg("GO", get_totp(host_list[int_id].password, host_list[int_id].address, time(NULL)));
         send(host_list[hid].socket, smsg.c_str(), smsg.length(), 0);
         char *buf = create_str(1024);
-        PRINTD(4, 0, "NET", "Waiting to receive filedata from %d", hid);
+        PRINTD(4, 0, "NET", "Waiting to receive filedata from host %d", hid);
         while (recv(host_list[hid].socket, buf, 1024, MSG_DONTWAIT) <= 0) usleep(10000);
         host_list[hid].last_msg = get_cur_time();
         string fdata = dec_msg(buf, calculate_totp(host_list[hid].password, host_list[hid].address));
