@@ -266,9 +266,11 @@ namespace Cluster {
             return NULL;
         }
         free(buf);
-        send(host_list[hid].socket, "OK", 2, 0);
+        string cok = enc_msg("OK", get_totp(host_list[int_id].password, host_list[int_id].address, time(NULL)));
+        send(host_list[hid].socket, cok.c_str(), cok.length(), 0);
         char *data = create_str(dlen);
-        while (recv(host_list[hid].socket, buf, dlen, MSG_DONTWAIT) <= 0) usleep(10000);
+        usleep(500000);
+        while (recv(host_list[hid].socket, buf, dlen, MSG_DONTWAIT) <= 0) usleep(100000);
         host_list[hid].last_msg = get_cur_time();
         ofstream ofile;
         ofile.open(STRLITFIX(fname.c_str()));
