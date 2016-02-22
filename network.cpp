@@ -271,10 +271,11 @@ namespace Cluster {
         char *data = create_str(dlen);
         usleep(500000);
         while (recv(host_list[hid].socket, buf, dlen, MSG_DONTWAIT) <= 0) usleep(100000);
+        string ptxt = dec_msg(data, calculate_totp(host_list[int_id].password, host_list[int_id].address));
         host_list[hid].last_msg = get_cur_time();
         ofstream ofile;
         ofile.open(STRLITFIX(fname.c_str()));
-        ofile << data << std::endl;
+        ofile << ptxt << std::endl;
         ofile.close();
         free(data);
 
