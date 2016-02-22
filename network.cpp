@@ -175,9 +175,25 @@ namespace Cluster {
             // TODO add file permissions here?
             if (*it == int_id) continue;
             PRINTD(4, 0, "NET", "Sending file %s to host %d", path.c_str(), *it);
+            int ret = sem_wait(&hosts_busy[*it]);
+            if (ret) {
+                PRINTD(1, 0, "NET", "Failed to lock semaphore");
+            }
             // Inform receiver we are sending file
             string info = string("fs").append("--").append(my_id);
             string cinfo = enc_msg(info, get_totp(host_list[*it].password, host_list[*it].address, time(NULL))).append(MSG_DELIM);
+            char *buf = create_str(8);
+            memset(buf, '\0', 8);
+            recv(host_list[*it].socket, buf, 8, 0);
+            string msg = dec_msg(buf, calculate_totp(host_list[*it].password, host_list[*it].address));
+            if (msg.compare("GO") != 0) {
+                PRINTD(1, 0, "NET", "Received unknown response in sending file %s to host %d: %s", path.c_str(), *it, msg.c_str());
+                if (ret != 0) {
+                    PRINTD(1, 0, "NET", "Failed to release semaphore");
+                }
+                PRINTD(1, 0, "NET", "Failed to send file %s to host %d", path.c_str(), *it);
+                continue;
+            }
             send(host_list[*it].socket, cinfo.c_str(), cinfo.length(), 0);
             // Give receiver time to complete current set of commands and
             // mark this host as busy to allow direct network communication
@@ -187,27 +203,38 @@ namespace Cluster {
             string ctxt = enc_msg(metadata, get_totp(host_list[*it].password, host_list[*it].address, time(NULL)));
             PRINTD(5, 1, "NET", "Sending metadata");
             send(host_list[*it].socket, ctxt.c_str(), ctxt.length(), 0);
-            char *buf = create_str(8);
             recv(host_list[*it].socket, buf, 8, 0);
-            if (strcmp(buf, "FAIL") == 0) {
+            msg = dec_msg(buf, calculate_totp(host_list[*it].password, host_list[*it].address));
+            if (msg.compare("FAIL") == 0) {
                 // TODO what should happen?
+                int ret = sem_post(&hosts_busy[*it]);
+                if (ret != 0) {
+                    PRINTD(1, 0, "NET", "Failed to release semaphore");
+                }
                 PRINTD(1, 0, "NET", "Failed to send file %s to host %d", path.c_str(), *it);
-                return NULL;
-            } else if (strcmp(buf, "OK") != 0) {
+                continue;
+            } if (msg.compare("OK") != 0) {
                 // TODO um....
-                PRINTD(1, 0, "NET", "Received unknown response in sending file %s to host %d: %s", path.c_str(), *it, buf);
-                return NULL;
+                PRINTD(1, 0, "NET", "Received unknown response in sending file %s to host %d: %s", path.c_str(), *it, msg.c_str());
+                int ret = sem_post(&hosts_busy[*it]);
+                if (ret != 0) {
+                    PRINTD(1, 0, "NET", "Failed to release semaphore");
+                }
+                continue;
             }
             free(buf);
 
             ctxt = enc_msg(fdata, get_totp(host_list[*it].password, host_list[*it].address, time(NULL)));
             send(host_list[*it].socket, ctxt.c_str(), ctxt.length(), 0);
         }
+
         return NULL;
     }/*}}}*/
 
     void* recv_file(void *arg) {/*{{{*/
         int hid = *((int*)arg);
+        string smsg = enc_msg("GO", get_totp(host_list[hid].password, host_list[hid].address, time(NULL)));
+        send(host_list[hid].socket, smsg.c_str(), smsg.length(), 0);
         char *buf = create_str(1024);
         PRINTD(4, 0, "NET", "Waiting to receive filedata from %d", hid);
         while (recv(host_list[hid].socket, buf, 1024, MSG_DONTWAIT) <= 0) usleep(10000);
