@@ -71,7 +71,9 @@ namespace Cluster {
         outlen += secondlen;
         EVP_CIPHER_CTX_cleanup(&ctx);
         PRINTDI(5, "NET", "Encrypt using IV %s", hexlify(iv, 32).c_str());
+        PRINTDI(5, "NET", "Encrypt using pass %s", passwd.c_str());
         PRINTDI(5, "NET", "Encrypting %s", hexlify(outbuf, outlen).c_str());
+        PRINTDI(5, "NET", "Encrypted value: %s",  hexlify(iv, 32).append(hexlify(outbuf, outlen)).c_str());
 
         return hexlify(iv, 32).append(hexlify(outbuf, outlen));
     }/*}}}*/
@@ -418,7 +420,7 @@ namespace Cluster {
             int *hid = (int*)malloc(sizeof(int*));
             *hid = hostid;
             pthread_create(&sender_thread, NULL, sender_loop, hid);
-            PRINTD(2, 0, "NET", "Host %d: %s connected", hostid, hostname.c_str());
+            PRINTD(1, 0, "NET", "Host %d: %s connected", hostid, hostname.c_str());
             
             check_services(hostid, true);
         }
