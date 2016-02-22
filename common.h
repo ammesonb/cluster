@@ -1,24 +1,34 @@
 #ifndef CLUSTER_COMMON_H
 #define CLUSTER_COMMON_H
 
+#define ANSI_COLOR_RED     "\x1b[31m"
+#define ANSI_COLOR_GREEN   "\x1b[32m"
+#define ANSI_COLOR_YELLOW  "\x1b[33m"
+#define ANSI_COLOR_BLUE    "\x1b[34m"
+#define ANSI_COLOR_MAGENTA "\x1b[35m"
+#define ANSI_COLOR_CYAN    "\x1b[36m"
+#define ANSI_COLOR_RESET   "\x1b[0m"
+
+static const char *colors[] = {ANSI_COLOR_RED, ANSI_COLOR_MAGENTA, ANSI_COLOR_YELLOW, ANSI_COLOR_CYAN, ANSI_COLOR_GREEN};
+
 #define   PRINTD(level, indent, label, d_str, args...) if (debug >= level) {\
           time_t printd_now = time(0);\
           char *printd_time = asctime(localtime(&printd_now));\
           printd_time[strlen(printd_time) - 1] = '\0';\
-          PRINTD_INDENT_LEVEL = indent; printf("%s %sDEBUG%d (%s): ", printd_time, string(indent * 4, ' ').c_str(), level, label);\
-          printf(d_str, ##args); printf("\n");}
+          PRINTD_INDENT_LEVEL = indent; printf("%s %s %sDEBUG%d (%s): ", printd_time, colors[level - 1], string(indent * 4, ' ').c_str(), level, label);\
+          printf(d_str, ##args); printf("%s\n", ANSI_COLOR_RESET);}
 #define   PRINTDI(level, label, d_str, args...) if (debug >= level) {\
           time_t printd_now = time(0);\
           char *printd_time = asctime(localtime(&printd_now));\
           printd_time[strlen(printd_time) - 1] = '\0';\
-          printf("%s %sDEBUG%d (%s): ", printd_time, string(PRINTD_INDENT_LEVEL * 4, ' ').c_str(), level, label);\
-          printf(d_str, ##args); printf("\n");}
+          printf("%s %s %sDEBUG%d (%s): ", printd_time, colors[level - 1], string(PRINTD_INDENT_LEVEL * 4, ' ').c_str(), level, label);\
+          printf(d_str, ##args); printf("%s\n", ANSI_COLOR_RESET);}
 #define   PRINTDR(level, indent_offset, label, d_str, args...) if (debug >= level) {\
           time_t printd_now = time(0);\
           char *printd_time = asctime(localtime(&printd_now));\
           printd_time[strlen(printd_time) - 1] = '\0';\
-          printf("%s %sDEBUG%d (%s): ", printd_time, string((PRINTD_INDENT_LEVEL + indent_offset) * 4, ' ').c_str(), level, label);\
-          printf(d_str, ##args); printf("\n");}
+          printf("%s %s %sDEBUG%d (%s): ", printd_time, colors[level - 1], string((PRINTD_INDENT_LEVEL + indent_offset) * 4, ' ').c_str(), level, label);\
+          printf(d_str, ##args); printf("%s\n", ANSI_COLOR_RESET);}
 #define   DIE(str, args...) \
           time_t printd_now = time(0);\
           char *printd_time = asctime(localtime(&printd_now));\

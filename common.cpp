@@ -35,13 +35,13 @@ namespace Cluster {
         while (ho.length() > 0) {
             start_split(ho, " ", STRLITFIX("checkhost"));
             string hostname = get_split(STRLITFIX("checkhost"));
-            if (hostname.length() == 0) {valid = false; PRINTD(0, 0, "CONF", "Bad formatting for host on line %d, requires hostname", host_num);}
+            if (hostname.length() == 0) {valid = false; PRINTD(1, 0, "CONF", "Bad formatting for host on line %d, requires hostname", host_num);}
             string host_port = get_split(STRLITFIX("checkhost"));
-            if (host_port.length() == 0) {valid = false; PRINTD(0, 0, "CONF", "Bad formatting for host on line %d, requires port", host_num);}
+            if (host_port.length() == 0) {valid = false; PRINTD(1, 0, "CONF", "Bad formatting for host on line %d, requires port", host_num);}
             string host_pass = get_split(STRLITFIX("checkhost"));
-            if (host_pass.length() == 0) {valid = false; PRINTD(0, 0, "CONF", "Bad formatting for host on line %d, host requires password for validation", host_num);}
+            if (host_pass.length() == 0) {valid = false; PRINTD(1, 0, "CONF", "Bad formatting for host on line %d, host requires password for validation", host_num);}
 
-            if (get_split(STRLITFIX("checkhost")).length() != 0) {valid = false; PRINTD(0, 0, "CONF", "Bad formatting for host on line %d, extra data found", host_num);}
+            if (get_split(STRLITFIX("checkhost")).length() != 0) {valid = false; PRINTD(1, 0, "CONF", "Bad formatting for host on line %d, extra data found", host_num);}
             end_split(STRLITFIX("checkhost"));
             ho = get_split(STRLITFIX("valhost"));
             host_num++;
@@ -51,7 +51,7 @@ namespace Cluster {
     } /*}}}*/
 
     void load_host_config() { /*{{{*/
-        if (!validate_host_config()) {PRINTD(0, 0, "CONF", "Found invalid host configuration!"); return;}
+        if (!validate_host_config()) {PRINTD(1, 0, "CONF", "Found invalid host configuration!"); return;}
         string hosts = read_file(STRLITFIX("hosts"));
         start_split(hosts, "\n", STRLITFIX("loadhosts"));
         string ho = get_split(STRLITFIX("loadhosts"));
@@ -94,9 +94,9 @@ namespace Cluster {
         while (serv.length() > 0) {
             start_split(serv, " ", STRLITFIX("valservice"));
             string servname = get_split(STRLITFIX("valservice"));
-            if (servname.length() == 0) {valid = false; PRINTD(0, 0, "CONF", "Bad formatting for service on line %d, requires name", serv_num);}                     
+            if (servname.length() == 0) {valid = false; PRINTD(1, 0, "CONF", "Bad formatting for service on line %d, requires name", serv_num);}                     
             string host1 = get_split(STRLITFIX("valservice"));
-            if (host1.length() == 0) {valid = false; PRINTD(0, 0, "CONF", "Bad formatting for service on line %d, requires at least one host", serv_num);}
+            if (host1.length() == 0) {valid = false; PRINTD(1, 0, "CONF", "Bad formatting for service on line %d, requires at least one host", serv_num);}
             int hosts_found = 1;
             while (split_active(STRLITFIX("valservice"))) {
                 string host = get_split(STRLITFIX("valservice"));
@@ -113,7 +113,7 @@ namespace Cluster {
     }/*}}}*/
 
     void load_service_config() {/*{{{*/
-        if (!validate_service_config()) {PRINTD(0, 0, "CONF", "Found invalid service configuration!"); return;}
+        if (!validate_service_config()) {PRINTD(1, 0, "CONF", "Found invalid service configuration!"); return;}
         string services = read_file(STRLITFIX("services"));
         start_split(services, "\n", STRLITFIX("loadservices"));
         string serv = get_split(STRLITFIX("loadservices"));
