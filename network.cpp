@@ -237,7 +237,7 @@ namespace Cluster {
 
     void* recv_file(void *arg) {/*{{{*/
         int hid = *((int*)arg);
-        string smsg = enc_msg("GO", get_totp(host_list[hid].password, host_list[hid].address, time(NULL)));
+        string smsg = enc_msg("GO", get_totp(host_list[int_id].password, host_list[int_id].address, time(NULL)));
         send(host_list[hid].socket, smsg.c_str(), smsg.length(), 0);
         char *buf = create_str(1024);
         PRINTD(4, 0, "NET", "Waiting to receive filedata from %d", hid);
