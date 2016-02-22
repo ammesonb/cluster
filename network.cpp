@@ -132,7 +132,7 @@ namespace Cluster {
             usleep((float)interval / 3.0 * 100000.0);
             if (sem_locked(hosts_busy[hostid])) {
             //if (std::find(VECTORFIND(hosts_busy, hostid)) != hosts_busy.end()) {
-                PRINTD(4, 0, "SEND", "Host %d is busy", hostid);
+                PRINTD(5, 0, "SEND", "Host %d is busy", hostid);
                 continue;
             }
             PRINTD(5, 0, "SEND", "Checking message queue for %s", host_list[hostid].address.c_str());
@@ -182,10 +182,15 @@ namespace Cluster {
             // Inform receiver we are sending file
             string info = string("fs").append("--").append(my_id);
             string cinfo = enc_msg(info, get_totp(host_list[*it].password, host_list[*it].address, time(NULL))).append(MSG_DELIM);
-            char *buf = create_str(8);
-            memset(buf, '\0', 8);
-            recv(host_list[*it].socket, buf, 8, 0);
+            send(host_list[*it].socket, cinfo.c_str(), cinfo.length(), 0);
+
+            char *buf = create_str(256);
+            memset(buf, '\0', 256);
+            PRINTDI(3, "NET", "Sent initial message, waiting for acknowledgement");
+            recv(host_list[*it].socket, buf, 256, 0);
+            printf("%s\n", buf);
             string msg = dec_msg(buf, calculate_totp(host_list[*it].password, host_list[*it].address));
+            printf("D: %s\n", msg.c_str());
             if (msg.compare("GO") != 0) {
                 PRINTD(1, 0, "NET", "Received unknown response in sending file %s to host %d: %s", path.c_str(), *it, msg.c_str());
                 if (ret != 0) {
@@ -194,16 +199,13 @@ namespace Cluster {
                 PRINTD(1, 0, "NET", "Failed to send file %s to host %d", path.c_str(), *it);
                 continue;
             }
-            send(host_list[*it].socket, cinfo.c_str(), cinfo.length(), 0);
-            // Give receiver time to complete current set of commands and
-            // mark this host as busy to allow direct network communication
 
             // Start sending file data
             string metadata = path.append("::").append(to_string(length));
             string ctxt = enc_msg(metadata, get_totp(host_list[*it].password, host_list[*it].address, time(NULL)));
             PRINTD(5, 1, "NET", "Sending metadata");
             send(host_list[*it].socket, ctxt.c_str(), ctxt.length(), 0);
-            recv(host_list[*it].socket, buf, 8, 0);
+            recv(host_list[*it].socket, buf, 256, 0);
             msg = dec_msg(buf, calculate_totp(host_list[*it].password, host_list[*it].address));
             if (msg.compare("FAIL") == 0) {
                 // TODO what should happen?
@@ -239,7 +241,7 @@ namespace Cluster {
         PRINTD(4, 0, "NET", "Waiting to receive filedata from %d", hid);
         while (recv(host_list[hid].socket, buf, 1024, MSG_DONTWAIT) <= 0) usleep(10000);
         host_list[hid].last_msg = get_cur_time();
-        string fdata = string(buf, 0, strlen(buf));
+        string fdata = dec_msg(buf, calculate_totp(host_list[hid].password, host_list[hid].address));
         start_split(fdata, "::", STRLITFIX("rfile"));
         string fname = get_split(STRLITFIX("rfile"));
         const char *name = filename(fname).c_str();
@@ -353,7 +355,7 @@ namespace Cluster {
                         end_split(STRLITFIX("cmd"));
                     }
                 } else {
-                    PRINTD(4, 0, "RECV", "Host %d is busy", *it);
+                    PRINTD(5, 0, "RECV", "Host %d is busy", *it);
                 }
             }
         }
@@ -416,7 +418,7 @@ namespace Cluster {
             int *hid = (int*)malloc(sizeof(int*));
             *hid = hostid;
             pthread_create(&sender_thread, NULL, sender_loop, hid);
-            PRINTD(3, 0, "NET", "Host %d: %s connected", hostid, hostname.c_str());
+            PRINTD(2, 0, "NET", "Host %d: %s connected", hostid, hostname.c_str());
             
             check_services(hostid, true);
         }
