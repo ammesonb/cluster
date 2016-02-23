@@ -279,6 +279,8 @@ namespace Cluster {
         ofile.close();
         free(data);
 
+        sync_timestamps[fname] = get_file_mtime((char*)fname.c_str());
+
         if (strcmp(name, "hosts") == 0) {
             PRINTD(2, 0, "NET", "Reloading host config");
             load_host_config();
