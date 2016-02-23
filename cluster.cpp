@@ -35,6 +35,8 @@
 //      Hard to reproduce
 // TODO File sending sync error
 // TODO detect new files in sync'ed folders
+// TODO file sending loop
+// TODO dual auth, if started simultaneously will connect by accept then in the connect loop
 
  // Introspection for DBus/*{{{*/
  const char *introspec_xml =
