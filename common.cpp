@@ -78,7 +78,7 @@ namespace Cluster {
 
             int ret = sem_init(&hosts_busy[host_num], 0, 1);
             if (ret != 0) {
-                PRINTD(1, 3, "CONF", "Failed to create semaphore on host num %d", host_num);
+                PRINTD(0, 3, "CONF", "Failed to create semaphore on host num %d", host_num);
             }
             host_num++;
         } 
@@ -199,7 +199,7 @@ namespace Cluster {
                 files.push_back(string(dir).append(string(ent->d_name)));
             }
         } else {
-            PRINTDI(1, "COMMON", "Failed to list directory %s", dir);
+            PRINTDI(0, "COMMON", "Failed to list directory %s", dir);
         }
         closedir(d);
         PRINTDI(5, "COMMON", "Directory %s had %lu files", dir, files.size());

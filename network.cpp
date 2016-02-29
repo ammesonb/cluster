@@ -60,12 +60,12 @@ namespace Cluster {
         EVP_CIPHER_CTX_init(&ctx);
         EVP_EncryptInit_ex(&ctx, EVP_aes_128_cbc(), NULL, (const unsigned char*)passwd.c_str(), iv);
         if (!EVP_EncryptUpdate(&ctx, outbuf, &outlen, (const unsigned char*)msg.c_str(), msg.length())) {
-            PRINTD(1, 0, "NET", "Encryption of message failed in EncryptUpdate");
+            PRINTD(0, 0, "NET", "Encryption of message failed in EncryptUpdate");
             return string("");
         }
 
         if (!EVP_EncryptFinal_ex(&ctx, outbuf + outlen, &secondlen)) {
-            PRINTD(1, 0, "NET", "Encryption of message failed in EncryptFinal");
+            PRINTD(0, 0, "NET", "Encryption of message failed in EncryptFinal");
             return string("");
         }
         outlen += secondlen;
@@ -103,7 +103,7 @@ namespace Cluster {
                                (const unsigned char*)iv.c_str());
             if (!EVP_DecryptUpdate(&ctx, outbuf, &outlen, (const unsigned char*)data.c_str(), data.length())) {
                 if (i == pass_length - 1) {
-                    PRINTD(1, 0, "NET", "Decryption of message failed in DecryptUpdate");
+                    PRINTD(0, 0, "NET", "Decryption of message failed in DecryptUpdate");
                     return string("");
                 } else {
                     continue;
@@ -112,7 +112,7 @@ namespace Cluster {
 
             if (!EVP_DecryptFinal_ex(&ctx, outbuf + outlen, &secondlen)) {
                 if (i == pass_length - 1) {
-                    PRINTD(1, 0, "NET", "Decryption of message failed in DecryptFinal");
+                    PRINTD(0, 0, "NET", "Decryption of message failed in DecryptFinal");
                     return string("");
                 } else {
                     continue;
@@ -180,7 +180,7 @@ namespace Cluster {
             PRINTD(4, 0, "NET", "Sending file %s to host %d", path.c_str(), *it);
             int ret = sem_wait(&hosts_busy[*it]);
             if (ret) {
-                PRINTD(1, 0, "NET", "Failed to lock semaphore");
+                PRINTD(0, 0, "NET", "Failed to lock semaphore");
             }
             // Inform receiver we are sending file
             string info = string("fs").append("--").append(my_id);
@@ -195,9 +195,9 @@ namespace Cluster {
             if (msg.compare("GO") != 0) {
                 PRINTD(1, 0, "NET", "Received unknown response in sending file %s to host %d: '%s'", path.c_str(), *it, msg.c_str());
                 if (ret != 0) {
-                    PRINTD(1, 0, "NET", "Failed to release semaphore");
+                    PRINTD(0, 0, "NET", "Failed to release semaphore");
                 }
-                PRINTD(1, 0, "NET", "Failed to send file %s to host %d", path.c_str(), *it);
+                PRINTD(0, 0, "NET", "Failed to send file %s to host %d", path.c_str(), *it);
                 continue;
             }
 
@@ -212,16 +212,16 @@ namespace Cluster {
                 // TODO what should happen?
                 int ret = sem_post(&hosts_busy[*it]);
                 if (ret != 0) {
-                    PRINTD(1, 0, "NET", "Failed to release semaphore");
+                    PRINTD(0, 0, "NET", "Failed to release semaphore");
                 }
-                PRINTD(1, 0, "NET", "Failed to send file %s to host %d", path.c_str(), *it);
+                PRINTD(0, 0, "NET", "Failed to send file %s to host %d", path.c_str(), *it);
                 continue;
             } else if (msg.compare("OK") != 0) {
                 // TODO um....
                 PRINTD(1, 0, "NET", "Received unknown response in sending file %s to host %d: '%s'", path.c_str(), *it, msg.c_str());
                 int ret = sem_post(&hosts_busy[*it]);
                 if (ret != 0) {
-                    PRINTD(1, 0, "NET", "Failed to release semaphore");
+                    PRINTD(0, 0, "NET", "Failed to release semaphore");
                 }
                 continue;
             }
@@ -255,12 +255,12 @@ namespace Cluster {
         int dlen = std::stoi(get_split(STRLITFIX("rfile")));
         end_split(STRLITFIX("rfile"));
         if (dlen <= 0) {
-            PRINTD(1, 0, "NET", "File transfer of %s from %d failed", fname.c_str(), hid);
+            PRINTD(0, 0, "NET", "File transfer of %s from %d failed", fname.c_str(), hid);
             send(host_list[hid].socket, "FAIL", 4, 0);
             free(arg);
             int ret = sem_post(&hosts_busy[hid]);
             if (ret != 0) {
-                PRINTD(1, 0, "NET", "Failed to release semaphore");
+                PRINTD(0, 0, "NET", "Failed to release semaphore");
             }
             //hosts_busy.erase(std::remove(VECTORFIND(hosts_busy, hid)), hosts_busy.end());
             return NULL;
@@ -298,7 +298,7 @@ namespace Cluster {
         free(arg);
         int ret = sem_post(&hosts_busy[hid]);
         if (ret != 0) {
-            PRINTD(1, 0, "NET", "Failed to release semaphore");
+            PRINTD(0, 0, "NET", "Failed to release semaphore");
         }
         //hosts_busy.erase(std::remove(VECTORFIND(hosts_busy, hid)), hosts_busy.end());
         return NULL;
@@ -347,7 +347,7 @@ namespace Cluster {
                                 //hosts_busy.push_back(*hid);
                                 int ret = sem_wait(&hosts_busy[*hid]);
                                 if (ret) {
-                                    PRINTD(1, 0, "NET", "Failed to lock semaphore");
+                                    PRINTD(0, 0, "NET", "Failed to lock semaphore");
                                 }
                                 pthread_create(&file_thread, NULL, recv_file, hid);
                             } else if (command == "dyn") {
@@ -392,7 +392,7 @@ namespace Cluster {
             char* addr = inet_ntoa(client_addr.sin_addr);
             // If s_addr is 0 then no connection was actually attempted and the call simply timed out
             if (client_addr.sin_addr.s_addr == 0) continue;
-            if (client_fd < 0) {PRINTD(1, 0, "NET", "Failed to accept a connection from %s", addr); continue;}
+            if (client_fd < 0) {PRINTD(0, 0, "NET", "Failed to accept a connection from %s", addr); continue;}
             PRINTD(1, 0, "NET", "Waiting to receive auth from %s", addr);
             char *data = create_str(1024);
             string hostdata;
@@ -470,7 +470,7 @@ namespace Cluster {
         h->ai_protocol = 0;
 
         if (getaddrinfo(client.address.c_str(), std::to_string(client.port).c_str(), h, &res)) {
-            PRINTDR(1, 1, "NET", "Failed to get address info for %s", client.address.c_str());
+            PRINTDR(0, 1, "NET", "Failed to get address info for %s", client.address.c_str());
             return;
         }
 
@@ -492,11 +492,11 @@ namespace Cluster {
                 succeed = true;
                 break;
             } else {
-                PRINTDI(1, "NET", "Connection failed with error %d, %s", errno, strerror(errno));
+                PRINTDI(0, "NET", "Connection failed with error %d, %s", errno, strerror(errno));
             }
         }
         if (!succeed) {
-            PRINTD(1, 0, "NET", "Failed to connect to %s", client.address.c_str());
+            PRINTD(0, 0, "NET", "Failed to connect to %s", client.address.c_str());
             return;
         }
         set_sock_opts(sock);
@@ -518,7 +518,7 @@ namespace Cluster {
         if (strcmp(buf, "auth") == 0) {
             PRINTDR(1, 1, "NET", "Successfully connected to %s", client.address.c_str());
         } else {
-            PRINTD(1, 0, "NET", "Failed to authenticate with %s, sent %s and received %s", client.address.c_str(), data.c_str(), buf);
+            PRINTD(0, 0, "NET", "Failed to authenticate with %s, sent %s and received %s", client.address.c_str(), data.c_str(), buf);
             update_dns();
             // TODO Should try to authenticate again somehow?
         }

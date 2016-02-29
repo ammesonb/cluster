@@ -33,10 +33,10 @@
 
 // TODO crashes if a host drops offline and reconnects before other host notices it is offline
 //      Hard to reproduce
-// TODO File sending sync error
 // TODO detect new files in sync'ed folders
-// TODO file sending loop
+// TODO file sending loop seems to not clear busy flag
 // TODO dual auth, if started simultaneously will connect by accept then in the connect loop
+// TODO set error as index 0 for colors, all others shift
 
  // Introspection for DBus/*{{{*/
  const char *introspec_xml =
@@ -233,7 +233,7 @@ int main(int argc, char *argv[]) {/*{{{*/
     dbus_error_init(&dberror);
     conn = dbus_bus_get(DBUS_BUS_SESSION, &dberror);
     if (!conn || conn == NULL) {
-        PRINTD(1, 0, "MAIN", "Connection to D-BUS daemon failed: %s", dberror.message);
+        PRINTD(0, 0, "MAIN", "Connection to D-BUS daemon failed: %s", dberror.message);
     } else {
         init_dbus();
     }
