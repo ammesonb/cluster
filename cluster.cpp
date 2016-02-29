@@ -36,7 +36,6 @@
 // TODO detect new files in sync'ed folders
 // TODO file sending loop seems to not clear busy flag
 // TODO dual auth, if started simultaneously will connect by accept then in the connect loop
-// TODO set error as index 0 for colors, all others shift
 
  // Introspection for DBus/*{{{*/
  const char *introspec_xml =
