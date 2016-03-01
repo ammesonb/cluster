@@ -33,9 +33,11 @@
 
 // TODO crashes if a host drops offline and reconnects before other host notices it is offline
 //      Hard to reproduce
+//      Might be fixed?
 // TODO detect new files in sync'ed folders
 // TODO file sending loop seems to not clear busy flag
 // TODO dual auth, if started simultaneously will connect by accept then in the connect loop
+// TODO hosts should probably attempt to reconnect
 
  // Introspection for DBus/*{{{*/
  const char *introspec_xml =

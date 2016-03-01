@@ -418,17 +418,23 @@ namespace Cluster {
                 continue;
             }
 
-            host_list[hostid].socket = client_fd;
-            host_list[hostid].last_msg = get_cur_time();
-            host_list[hostid].online = true;
-            hosts_online.push_back(hostid);
-            pthread_t sender_thread;
-            int *hid = (int*)malloc(sizeof(int*));
-            *hid = hostid;
-            pthread_create(&sender_thread, NULL, sender_loop, hid);
-            PRINTD(1, 0, "NET", "Host %d: %s connected", hostid, hostname.c_str());
-            
-            check_services(hostid, true);
+            if (host_list[hostid].online && (std::find(VECTORFIND(hosts_online, hostid)) != hosts_online.end())) {
+                PRINTD(3, 0, "NET", "Host %d: %s is already online!", hostid, hostname.c_str());
+                host_list[hostid].socket = client_fd;
+                host_list[hostid].last_msg = get_cur_time();
+            } else {
+                host_list[hostid].socket = client_fd;
+                host_list[hostid].last_msg = get_cur_time();
+                host_list[hostid].online = true;
+                hosts_online.push_back(hostid);
+                pthread_t sender_thread;
+                int *hid = (int*)malloc(sizeof(int*));
+                *hid = hostid;
+                pthread_create(&sender_thread, NULL, sender_loop, hid);
+                PRINTD(1, 0, "NET", "Host %d: %s connected", hostid, hostname.c_str());
+                
+                check_services(hostid, true);
+            }
         }
 
         PRINTD(1, 0, "NET", "Accept thread is exiting");
