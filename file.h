@@ -38,5 +38,18 @@ namespace Cluster {
             string name;
             sync mode;
     };
+
+    class FileList {
+        public:
+            void AddDirs(vector<Dir*> dirs);
+            void AddFiles(vector<File*> files);
+            void RecheckDirs();
+
+        private:
+            // This will have ALL files
+            vector<File*> synced_files;
+            // This is really "watched" dirs which will load into the files list
+            vector<Dir*> synced_dirs;
+    };
 }
 #endif

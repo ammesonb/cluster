@@ -39,6 +39,7 @@ static const char *colors[] = {ANSI_COLOR_RED, ANSI_COLOR_MAGENTA, ANSI_COLOR_OR
 
 #define ITERVECTOR(arr, var) for (auto var = arr.begin(); var != arr.end(); var++)
 #define VECTORFIND(arr, var) arr.begin(), arr.end(), var
+#define INVECTOR(arr, var) std::find(VECTORFIND(arr, var)) != arr.end()
 #define DBUS_PATH "/com/bammeson/cluster"
 #define DBUS_NAME "com.bammeson.cluster"
 #define DBUS_HANDLER_PATH "/com/bammeson/clusterhandler"
@@ -56,6 +57,7 @@ static const char *colors[] = {ANSI_COLOR_RED, ANSI_COLOR_MAGENTA, ANSI_COLOR_OR
 #include <confuse.h>
 #include <semaphore.h>
 #include <vector>
+#include <algorithm>
 #include <map>
 
 #include "host.h"
