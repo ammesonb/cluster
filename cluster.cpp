@@ -30,6 +30,7 @@
 #include "host.h"
 #include "service.h"
 #include "network.h"
+#include "file.h"
 
 // TODO crashes if a host drops offline and reconnects before other host notices it is offline
 //      Hard to reproduce

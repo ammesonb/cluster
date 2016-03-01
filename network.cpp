@@ -166,7 +166,6 @@ namespace Cluster {
     }/*}}}*/
 
     void* send_file(string path) {/*{{{*/
-        // TODO verify this works
         string fdata = read_file((char*)path.c_str());
         // Length of IV + data + message delimiter
         int length = 32 + path.length() + 5;
