@@ -40,6 +40,9 @@
 // TODO dual auth, if started simultaneously will connect by accept then in the connect loop
 // TODO hosts should probably attempt to reconnect
 // TODO finish file sync class integration
+//      Start conditions are wonky, when running fairly straightforward
+//      Need to integrate file sync config with main/service configurations
+//      Will likely need a conflict resolution protocol
 
  // Introspection for DBus/*{{{*/
  const char *introspec_xml =
