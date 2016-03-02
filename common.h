@@ -62,6 +62,7 @@ static const char *colors[] = {ANSI_COLOR_RED, ANSI_COLOR_MAGENTA, ANSI_COLOR_OR
 
 #include "host.h"
 #include "service.h"
+#include "file.h"
 
 using std::map;
 using std::string;
@@ -77,14 +78,12 @@ namespace Cluster {
 
     extern map<int, Host> host_list;
     extern map<int, Service> serv_list;
+    extern FileList sync_files;
+
     extern vector<int> hosts_online;
     extern map<int, sem_t> hosts_busy;
     extern vector<int> running_services;
     extern map<int, vector<string>> send_message_queue;
-
-    extern vector<string> sync_files;
-    extern map<string, string> sync_checksums;
-    extern map<string, time_t> sync_timestamps;
 
     extern bool keep_running;
     extern int debug;
@@ -94,6 +93,7 @@ namespace Cluster {
     void load_host_config();
     bool validate_service_config();
     void load_service_config();
+    void load_file_sync();
 
     void check_services(int hostid, bool online);
 
@@ -115,6 +115,8 @@ namespace Cluster {
     string hash_file(char *name);
     string filename(string fname);
     string dirname(string fname);
+    bool direxists(char *path);
+    bool fileexists(char *file);
     string read_file(char *name);
     time_t get_file_mtime(char *name);
 

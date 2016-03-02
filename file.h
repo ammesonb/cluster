@@ -19,6 +19,7 @@ namespace Cluster {
 
     class File {
         public:
+            File();
             File(string name, Sync mode);
 
             string name;
@@ -26,9 +27,19 @@ namespace Cluster {
 
             bool VerifyChecksum(string checksum);
             file_act SelectAction(string checksum, time_t mtime, bool merged);
+            file_act SelectAction();
 
             bool operator==(const File &other) {
                 return (this->name.compare(other.name)) == 0;
+            }
+
+            void operator=(const File *other) {
+                this->name.clear();
+                this->name.append(other->name);
+                this->checksum.clear();
+                this->checksum.append(other->checksum);
+                this->mode = other->mode;
+                this->mtime = other->mtime;
             }
 
         private:
@@ -50,6 +61,11 @@ namespace Cluster {
             }
     };
 
+    typedef struct Update {
+        File file;
+        file_act action;
+    } Update;
+    
     class FileList {
         public:
             void AddDirs(vector<Dir*> dirs);
@@ -57,6 +73,7 @@ namespace Cluster {
             void RecheckDirs();
             void Save(string file);
             void Load(string file);
+            vector<Update> Check();
 
         private:
             // This will have ALL files

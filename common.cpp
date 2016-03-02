@@ -156,6 +156,15 @@ namespace Cluster {
             host_list[(*it).first].services = (*it).second;
     } /*}}}*/
 
+    void load_file_sync() {
+        sync_files.Load("files");
+        for (auto &it: serv_list) {
+            Service svc = it.second;
+            if (!direxists((char*)svc.name.c_str()) || !fileexists((char*)svc.name.append("/files").c_str())) continue;
+            sync_files.Load(svc.name.append("/files").c_str());
+        }
+    }
+
     char* create_str(int length) {/*{{{*/
         char *s = (char*)malloc(sizeof(char) * (length + 1));
         memset(s, '\0', length + 1);
@@ -336,6 +345,27 @@ namespace Cluster {
             return fname.substr(0, last_sep_idx);
         }
         return string();
+    }/*}}}*/
+
+    bool direxists(char *path) {/*{{{*/
+        if (path == NULL) return false;
+
+        DIR *dir;
+        bool exists = false;
+
+        dir = opendir(path);
+
+        if (dir != NULL) {
+            exists = true;    
+            (void)closedir(dir);
+        }
+
+        return exists;
+    }/*}}}*/
+
+    bool fileexists(char *path) {/*{{{*/
+        struct stat buffer;   
+        return (stat(path, &buffer) == 0); 
     }/*}}}*/
 
     string read_file(char *name) {/*{{{*/

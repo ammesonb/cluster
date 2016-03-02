@@ -261,7 +261,6 @@ namespace Cluster {
             if (ret != 0) {
                 PRINTD(0, 0, "NET", "Failed to release semaphore");
             }
-            //hosts_busy.erase(std::remove(VECTORFIND(hosts_busy, hid)), hosts_busy.end());
             return NULL;
         }
         free(buf);
@@ -280,7 +279,12 @@ namespace Cluster {
         ofile.close();
         free(data);
 
-        sync_timestamps[fname] = get_file_mtime((char*)fname.c_str());
+        // TODO update file metadata based on recv data
+        //      Consider startup case, where a received file would be
+        //      immediately rebroadcasted since the new timestamp would
+        //      be newer than the stored one
+
+        //sync_timestamps[fname] = get_file_mtime((char*)fname.c_str());
 
         if (strcmp(name, "hosts") == 0) {
             PRINTD(2, 0, "NET", "Reloading host config");

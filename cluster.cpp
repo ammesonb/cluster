@@ -101,14 +101,12 @@ namespace Cluster {/*{{{*/
 
     map<int, Host> host_list;
     map<int, Service> serv_list;
+    FileList sync_files;
+
     map<int, sem_t> hosts_busy;
     vector<int> hosts_online;
     vector<int> running_services;
     map<int, vector<string>> send_message_queue;
-
-    vector<string> sync_files;
-    map<string, string> sync_checksums;
-    map<string, time_t> sync_timestamps;
 
     DBUS_FUNC(dbus_handler) {/*{{{*/
         int handled = 0;
@@ -186,10 +184,13 @@ int main(int argc, char *argv[]) {/*{{{*/
 
     PRINTD(3, 1, "MAIN", "Loading services");
     if (!validate_service_config()) {DIE("Found invalid service configuration file!");}
-    load_service_config(); /*}}}*/
+    load_service_config();
 
-    PRINTD(3, 1, "MAIN", "Creating list of synchronized files");/*{{{*/
-    string c_files = trim(string(crit_files));
+    PRINTD(3, 1, "MAIN", "Loading files and dirs for sync");
+    load_file_sync(); /*}}}*/
+
+    //PRINTD(3, 1, "MAIN", "Creating list of synchronized files");/*{{{*/
+    /*string c_files = trim(string(crit_files));
     start_split(c_files, "\n", STRLITFIX("cfiles"));
     string file = trim(get_split(STRLITFIX("cfiles")));
     while (file.length() != 0) {
@@ -213,7 +214,7 @@ int main(int argc, char *argv[]) {/*{{{*/
         string dir = string("/home/brett/Programming/cluster/").append(s.name).append("/");
         vector<string> f = get_directory_files((char*)dir.c_str());
         sync_files.insert(sync_files.end(), f.begin(), f.end());
-    }/*}}}*/
+    }*//*}}}*/
 
     PRINTD(3, 1, "MAIN", "Getting sync'ed file data");/*{{{*/
     // TODO need to consider files that aren't on remote machine
@@ -222,14 +223,7 @@ int main(int argc, char *argv[]) {/*{{{*/
     // TODO need to store checksums after quit, maybe could use only when file modification state
     // unknown?
         // TODO would need protocol to check file checksums then
-    ITERVECTOR(sync_files, it) {
-        string name = (string)*it;
-        sync_checksums[name] = hash_file((char*)name.c_str());
-        sync_timestamps[name] = get_file_mtime((char*)name.c_str());
-        PRINTD(4, 1, "MAIN", "    Sync file: %s", name.c_str());
-        PRINTD(4, 1, "MAIN", "     Checksum: %s", sync_checksums[name].c_str());
-        PRINTD(4, 1, "MAIN", "Last modified: %lu", sync_timestamps[name]);
-    }/*}}}*/
+    /*}}}*/
 
     PRINTD(2, 0, "MAIN", "Initializing session");
     PRINTD(3, 1, "MAIN", "Opening DBus");
@@ -335,13 +329,18 @@ int main(int argc, char *argv[]) {/*{{{*/
             queue_keepalive();
         }/*}}}*/
 
+        vector<Update> updates = sync_files.Check();
         // Check file timestamps /*{{{*/
-        ITERVECTOR(sync_files, it) {
-            string name = *it;
-            if (get_file_mtime((char*)name.c_str()) != sync_timestamps[name]) {
-                PRINTD(3, 0, "MAIN", "Detected change in file %s", name.c_str());
-                sync_timestamps[name] = get_file_mtime((char*)name.c_str());
-                send_file(name);
+        ITERVECTOR(updates, it) {
+            Update upd = *it;
+            if (upd.action == PUSH) {
+                // TODO this probably needs to be updated to account for the new
+                //      metadata in the class
+                //      Maybe permissions could be stored here too?
+                //      But should that be detected on change?
+                send_file(upd.file.name);
+            } else if (upd.action == REQUEST) {
+                // TODO how to do this?
             }
         }/*}}}*/
 

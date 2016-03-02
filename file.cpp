@@ -29,7 +29,7 @@ namespace Cluster {
         AddDirs(this->synced_dirs);
     }/*}}}*/
 
-    void FileList::Save(string file) {
+    void FileList::Save(string file) {/*{{{*/
         SyncUnion su;
         std::ostringstream oss;
         oss << "DIRS\n";
@@ -52,7 +52,7 @@ namespace Cluster {
         FILE* sfile = fopen(file.c_str(), "w");
         fwrite(data.c_str(), data.length(), sizeof(char), sfile);
         fclose(sfile);
-    }
+    }/*}}}*/
 
     void FileList::Load(string file) {/*{{{*/
         // False is dir, true is file
@@ -88,6 +88,24 @@ namespace Cluster {
         this->AddFiles(files);
     }/*}}}*/
 
+    vector<Update> FileList::Check() {
+        vector<Update> updates;
+        ITERVECTOR(this->synced_files, it) {
+            File *f = *it;
+            if (f->SelectAction() != NOOP) {
+                Update upd;
+                upd.file = f;
+                upd.action = f->SelectAction();
+                updates.push_back(upd);
+            }
+        }
+        return updates;
+    };
+
+    File::File() {
+        // This leaves everything undefined and should never be used
+    }
+
     File::File(string name, Sync mode) {/*{{{*/
         this->name = name;
         this->mode = mode;
@@ -97,6 +115,28 @@ namespace Cluster {
 
     bool File::VerifyChecksum(string checksum) {/*{{{*/
         return (checksum.compare(this->checksum) == 0);
+    }/*}}}*/
+
+    file_act File::SelectAction() {/*{{{*/
+        time_t mtime = get_file_mtime((char*)name.c_str());
+        string checksum = hash_file((char*)name.c_str());
+
+        if (checksum.compare(this->checksum) == 0) return NOOP;
+        if (this->mode == Sync::NEWER) {
+            if (mtime > this->mtime) return REQUEST;
+            else if (mtime < this->mtime) return PUSH;
+            return NOOP;
+        } else if (this->mode == Sync::OLDER) {
+            if (mtime < this->mtime) return PUSH;
+            else if (mtime > this->mtime) return REQUEST;
+            return NOOP;
+        } else if (this->mode == Sync::MERGE) {
+            // TODO Find a way to merge files?
+            //      How does this choose whether to push an update or receive one?
+            return NOOP;
+        }
+
+        return NOOP;
     }/*}}}*/
 
     file_act File::SelectAction(string checksum, time_t mtime, bool merged) {/*{{{*/
