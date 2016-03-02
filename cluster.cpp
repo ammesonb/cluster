@@ -39,6 +39,7 @@
 // TODO file sending loop seems to not clear busy flag
 // TODO dual auth, if started simultaneously will connect by accept then in the connect loop
 // TODO hosts should probably attempt to reconnect
+// TODO finish file sync class integration
 
  // Introspection for DBus/*{{{*/
  const char *introspec_xml =
