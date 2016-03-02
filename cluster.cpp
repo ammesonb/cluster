@@ -42,7 +42,9 @@
 // TODO finish file sync class integration
 //      Start conditions are wonky, when running fairly straightforward
 //      Need to integrate file sync config with main/service configurations
+//          Done?
 //      Will likely need a conflict resolution protocol
+//      Does not actually make use of the save function for FileList
 
  // Introspection for DBus/*{{{*/
  const char *introspec_xml =
